@@ -267,8 +267,10 @@ void FGAIAircraft::ClimbTo(double alt_ft ) {
 
 
 void FGAIAircraft::TurnTo(double heading) {
-    if( fabs(heading) < 0.1 ) {
-        SG_LOG(SG_AI, SG_WARN, getCallSign() << "|Heading reset to zero");
+    const double headingDiff = SGMiscd::normalizePeriodic(-180, 180, heading-tgt_heading);
+
+    if (fabs(heading) < 0.1 && fabs(headingDiff) > 1) {
+        SG_LOG(SG_AI, SG_WARN, getCallSign() << "|Heading reset to zero " << tgt_heading << " " << headingDiff << " at " << getGeodPos());
     }
     tgt_heading = heading;
     // SG_LOG(SG_AI, SG_BULK, "Turn tgt_heading to " << tgt_heading);
@@ -484,13 +486,14 @@ double FGAIAircraft::calcVerticalSpeed(double vert_ft, double dist_m, double spe
 
 void FGAIAircraft::clearATCController()
 {
-    if (controller) {
+    if (controller && !getDie()) {
+        //If we are dead we are automatically erased
         controller->signOff(getID());
     }
 
-    controller = 0;
-    prevController = 0;
-    towerController = 0;
+    controller = nullptr;
+    prevController = nullptr;
+    towerController = nullptr;
 }
 
 bool FGAIAircraft::isBlockedBy(FGAIAircraft* other) {
@@ -716,7 +719,8 @@ void FGAIAircraft::announcePositionToController() {
         break;
     }
 
-    if ((controller != prevController) && (prevController != 0)) {
+    if ((controller != prevController) && prevController && !getDie()) {
+        //If we are dead we are automatically erased
         prevController->signOff(getID());
     }
     prevController = controller;
@@ -1377,20 +1381,20 @@ void FGAIAircraft::handleATCRequests(double dt)
     //TODO implement NullController for having no ATC to save the conditionals
     if (controller) {
         controller->updateAircraftInformation(getID(),
-                                              pos.getLatitudeDeg(),
-                                              pos.getLongitudeDeg(),
+                                              pos,
                                               hdg,
                                               speed,
-                                              altitude_ft, dt);
+                                              altitude_ft,
+                                              dt);
         processATC(controller->getInstruction(getID()));
     }
     if (towerController) {
         towerController->updateAircraftInformation(getID(),
-                                              pos.getLatitudeDeg(),
-                                              pos.getLongitudeDeg(),
+                                              pos,
                                               hdg,
                                               speed,
-                                              altitude_ft, dt);
+                                              altitude_ft,
+                                              dt);
     }
 }
 
@@ -1638,7 +1642,7 @@ void FGAIAircraft::dumpCSVHeader(std::unique_ptr<sg_ofstream> &o) {
     (*o) <<  "no_roll\t";
     (*o) <<  "roll\t";
     (*o) <<  "repositioned\t";
-    (*o) <<  "stuckCounter";
+    (*o) <<  "stuckCounter\t";
     (*o) <<  endl;
 }
 
@@ -1710,7 +1714,7 @@ void FGAIAircraft::dumpCSV(std::unique_ptr<sg_ofstream> &o, int lineIndex) {
     (*o) <<  this->onGround() << "\t";
     (*o) <<  roll << "\t";
     (*o) <<  repositioned << "\t";
-    (*o) <<  stuckCounter;
+    (*o) <<  stuckCounter << "\t";
     (*o) <<  endl;
 }
 

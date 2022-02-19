@@ -99,7 +99,7 @@ void TrafficMgrTests::testTrafficManager()
     fgSetBool("/environment/realwx/enabled", false);
     fgSetBool("/environment/metar/valid", false);
     fgSetBool("/sim/terrasync/ai-data-update-now", false);
-    
+
     fgSetBool("/sim/traffic-manager/instantaneous-action", true);
     fgSetBool("/sim/traffic-manager/heuristics", true);
     fgSetBool("/sim/traffic-manager/dumpdata", false);
