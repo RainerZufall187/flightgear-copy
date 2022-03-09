@@ -687,7 +687,9 @@ int fgMainInit( int argc, char **argv )
         return EXIT_SUCCESS;
     }
 
-//    runStartupUI();
+#if 0
+    runStartupUI();
+#endif
 
     bool didUseLauncher = false; /* <didUseLauncher> is set but unused. */
 #if defined(HAVE_QT)

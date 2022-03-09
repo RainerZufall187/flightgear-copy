@@ -17,16 +17,17 @@
 #include <simgear/debug/logstream.hxx>
 #include <simgear/structure/commands.hxx>
 
+#include <Canvas/FGCanvasSystemAdapter.hxx>
+#include <Canvas/gui_mgr.hxx>
+#include <GUI/gui.h>
+#include <GUI/new_gui.hxx>
+#include <Main/fg_commands.hxx>
 #include <Main/fg_props.hxx>
-#include <Viewer/WindowSystemAdapter.hxx>
+#include <Main/util.hxx>
+#include <Navaids/NavDataCache.hxx> // needed by NewGUI XML cache
 #include <Network/HTTPClient.hxx>
 #include <Scripting/NasalSys.hxx>
-#include <GUI/new_gui.hxx>
-#include <Canvas/gui_mgr.hxx>
-#include <Canvas/FGCanvasSystemAdapter.hxx>
-#include <Navaids/NavDataCache.hxx> // needed by NewGUI XML cache
-#include <Main/util.hxx>
-#include <Main/fg_commands.hxx>
+#include <Viewer/WindowSystemAdapter.hxx>
 #include <Viewer/splash.hxx>
 
 namespace sc = simgear::canvas;
@@ -164,6 +165,10 @@ void StartupUIController::createWindow()
     d->_viewer->setSceneData(d->_splash.get());
     
     d->_viewer->realize();
+
+    while (!guiInit(gc)) {
+        frame();
+    }
 }
 
 void StartupUIController::setNasalModules()
@@ -254,7 +259,8 @@ void runStartupUI()
     std::unique_ptr<StartupUIController> sv{new StartupUIController};
     sv->init();
     sv->createWindow();
-    
+
+
     sv->createSubsystems();
     
     
