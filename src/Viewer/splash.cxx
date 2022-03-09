@@ -611,10 +611,10 @@ std::string SplashScreen::selectSplashImage()
 
 void SplashScreen::doUpdate()
 {
-    if (!guiInit()) {
+//    if (!guiInit()) {
         // don't createNodes until OSG init operations have completed
-        return;
-    }
+ //       return;
+  //  }
 
     double alpha = _splashAlphaNode->getDoubleValue();
 

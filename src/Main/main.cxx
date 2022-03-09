@@ -65,6 +65,7 @@
 #include <Viewer/renderer.hxx>
 #include <Viewer/splash.hxx>
 #include <flightgearBuildId.h>
+#include <Viewer/StartupUIController.hxx>
 
 #include "fg_commands.hxx"
 #include "fg_init.hxx"
@@ -683,6 +684,8 @@ int fgMainInit( int argc, char **argv )
     } else if (configResult == flightgear::FG_OPTIONS_EXIT) {
         return EXIT_SUCCESS;
     }
+
+//    runStartupUI();
 
     bool didUseLauncher = false; /* <didUseLauncher> is set but unused. */
 #if defined(HAVE_QT)
