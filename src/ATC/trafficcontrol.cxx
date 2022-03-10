@@ -92,7 +92,7 @@ time_t ActiveRunway::requestTimeSlot(time_t eta)
     // if the aircraft is the first arrival, add to the vector and return eta directly
     if (estimatedArrivalTimes.empty()) {
         estimatedArrivalTimes.push_back(eta);
-        SG_LOG(SG_ATC, SG_DEBUG, "Checked eta slots, using" << eta);
+        SG_LOG(SG_ATC, SG_DEBUG, "Checked eta slots, using " << eta);
         return eta;
     } else {
         // First check the already assigned slots to see where we need to fit the flight in

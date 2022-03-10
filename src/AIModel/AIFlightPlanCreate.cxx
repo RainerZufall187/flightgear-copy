@@ -175,7 +175,7 @@ int endAngle, int increment, int radius, double aElev, double aSpeed, const char
         endAngle += 360;
     }
 
-    for (int i = startAngle; i != endAngle; i += increment) {
+    for (int i = startAngle; fabs(i - endAngle) < fabs(increment) ; i += increment) {
         SGGeod result;
         SGGeodesy::direct(center, i,
                         radius, result, dummyAz2);
@@ -498,11 +498,7 @@ bool FGAIFlightPlan::createLandingTaxi(FGAIAircraft * ac,
     FGTaxiNodeRef node;
     taxiRoute.first();
     int size = taxiRoute.size();
-    //FIXME find better solution than fixed number of 2
-    // Omit the last two waypoints, as
-    // those are created by createParking()
-   // int route;
-    for (int i = 0; i < size - 2; i++) {
+    for (int i = 0; i < size; i++) {
         taxiRoute.next(node, &route);
         char buffer[32];
         snprintf(buffer, sizeof(buffer), "landingtaxi-%d-%d",  node->getIndex(), i);
@@ -511,12 +507,14 @@ bool FGAIFlightPlan::createLandingTaxi(FGAIAircraft * ac,
                            ac->getPerformance()->vTaxi());
 
         wpt->setRouteIndex(route);
-        // next WPT must be far enough
-        if (!waypoints.back() || SGGeodesy::distanceM(waypoints.back()->getPos(), wpt->getPos()) > 0 ) {
+        // next WPT must be far enough from last and far enough from parking
+        if ((!waypoints.back() ||
+        SGGeodesy::distanceM(waypoints.back()->getPos(), wpt->getPos()) > 1) &&
+        SGGeodesy::distanceM(gate.parking()->geod(), wpt->getPos()) > 20) {
             if (waypoints.back()) {
                int dist = SGGeodesy::distanceM(waypoints.back()->getPos(), wpt->getPos());
                // pretty near better set speed down
-               if (dist<10) {
+               if (dist<10 || (size - i) < 2 ) {
                   wpt->setSpeed(ac->getPerformance()->vTaxi()/2);
                }
             }
@@ -919,14 +917,14 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft * ac, FGAirport * apt,
     // circle right around secondary target if orig of position is to the right of the runway
     // i.e. use negative angles; else circle leftward and use postivi
     if (side < 180) {
-        increment = -1;
+        increment = -2;
         startval = floor(initialAzimuth);
         endval = ceil(finalAzimuth);
         if (endval > startval) {
             endval -= 360;
         }
     } else {
-        increment = 1;
+        increment = 2;
         startval = ceil(initialAzimuth);
         endval = floor(finalAzimuth);
         if (endval < startval) {
@@ -975,8 +973,10 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft * ac, FGAirport * apt,
         double tempDistance = SGGeodesy::distanceM(current, initialTarget);
         time_t eta2 =
             tempDistance / ((vDescent * SG_NM_TO_METER) / 3600.0) + now;
+        SG_LOG(SG_ATC, SG_BULK, "Final 1 " << eta2);
         time_t newEta2 =
             apt->getDynamics()->getApproachController()->getRunway(rwy->name())->requestTimeSlot(eta2);
+        SG_LOG(SG_ATC, SG_BULK, "Final 1 " << eta2 << " " << newEta2);
         arrivalTime = newEta2;
         double newDistance2 =
             ((vDescent * SG_NM_TO_METER) / 3600.0) * (newEta2 - now);
@@ -984,6 +984,7 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft * ac, FGAirport * apt,
         IncrementWaypoint(true);        // remove waypoint BOD2
 
         while (checkTrackLength("final001") > newDistance2) {
+            SG_LOG(SG_ATC, SG_BULK, "Final 2 " << checkTrackLength("final001") );
             IncrementWaypoint(true);
         }
 
@@ -1037,7 +1038,7 @@ bool FGAIFlightPlan::createLanding(FGAIAircraft * ac, FGAirport * apt,
     double vTaxiMetric      = vTaxi       * SG_KT_TO_MPS;
     double decelMetric      = decel       * SG_KT_TO_MPS;
 
-    char buffer[20];
+    char buffer[30];
     if (!apt->hasRunwayWithIdent(activeRunway)) {
         SG_LOG(SG_AI, SG_WARN, "FGAIFlightPlan::createLanding: No such runway " << activeRunway << " at " << apt->ident());
         return false;
@@ -1057,10 +1058,15 @@ bool FGAIFlightPlan::createLanding(FGAIAircraft * ac, FGAirport * apt,
       touchdownDistance = rwy->displacedThresholdM() + (landingLength * 0.25);
     }
 
+    const double tanGlideslope = tan(3.0);
+
     SGGeod coord;
   // find glideslope entry point, 2000' above touchdown elevation
-    double glideslopeEntry = -((2000 * SG_FEET_TO_METER) / tan(3.0)) + touchdownDistance;
-    FGAIWaypoint *wpt = createInAir(ac, "Glideslope begin", rwy->pointOnCenterline(glideslopeEntry),
+    double glideslopeEntry = -((2000 * SG_FEET_TO_METER) / tanGlideslope) + touchdownDistance;
+
+    snprintf(buffer, sizeof(buffer), "Glideslope begin Rwy %s", activeRunway.c_str());
+
+    FGAIWaypoint *wpt = createInAir(ac, buffer, rwy->pointOnCenterline(-glideslopeEntry),
                                   currElev + 2000, vApproach);
     wpt->setGear_down(true);
     wpt->setFlaps(1.0f);
@@ -1069,8 +1075,8 @@ bool FGAIFlightPlan::createLanding(FGAIAircraft * ac, FGAirport * apt,
 
   // deceleration point, 500' above touchdown elevation - slow from approach speed
   // to touchdown speed
-    double decelPoint = -((500 * SG_FEET_TO_METER) / tan(3.0)) + touchdownDistance;
-    wpt = createInAir(ac, "500' decel", rwy->pointOnCenterline(decelPoint),
+    double decelPoint = -((500 * SG_FEET_TO_METER) / tanGlideslope) + touchdownDistance;
+    wpt = createInAir(ac, "500' decel", rwy->pointOnCenterline(-decelPoint),
                                   currElev + 500, vTouchdown);
     wpt->setGear_down(true);
     wpt->setFlaps(1.0f);
@@ -1086,6 +1092,8 @@ bool FGAIFlightPlan::createLanding(FGAIAircraft * ac, FGAirport * apt,
     wpt->setFlaps(1.0f);
     wpt->setSpeedBrakes(1.0f);
     pushBackWaypoint(wpt);
+
+    SG_LOG(SG_AI, SG_BULK, "Landing " << glideslopeEntry << "\t" << decelPoint);
 
     double rolloutDistance = accelDistance(vTouchdownMetric, vTaxiMetric, decelMetric);
 
@@ -1154,34 +1162,34 @@ bool FGAIFlightPlan::createParking(FGAIAircraft * ac, FGAirport * apt,
     double az; // unused
     SGGeod pos;
 
-    SGGeodesy::direct(parking->geod(), reverseHeading, 2 * parking->getRadius(),
+    SGGeodesy::direct(parking->geod(), reverseHeading, 18,
                       pos, az);
 
-    wpt = createOnGround(ac, "parking1", pos, aptElev, vTaxiReduced/3);
+    wpt = createOnGround(ac, "parking1", pos, aptElev, 3);
     pushBackWaypoint(wpt);
 
-    SGGeodesy::direct(parking->geod(), reverseHeading, 1 * parking->getRadius(),
+    SGGeodesy::direct(parking->geod(), reverseHeading, 14,
                     pos, az);
-    wpt = createOnGround(ac, "parking2", pos, aptElev, vTaxiReduced/3);
+    wpt = createOnGround(ac, "parking2", pos, aptElev, 3);
     pushBackWaypoint(wpt);
 
-    SGGeodesy::direct(parking->geod(), reverseHeading, 0.6 * parking->getRadius(),
+    SGGeodesy::direct(parking->geod(), reverseHeading, 10,
                     pos, az);
-    wpt = createOnGround(ac, "parking3", pos, aptElev, vTaxiReduced/3);
+    wpt = createOnGround(ac, "parking3", pos, aptElev, 2);
     pushBackWaypoint(wpt);
 
-    SGGeodesy::direct(parking->geod(), reverseHeading, 0.3 * parking->getRadius(),
+    SGGeodesy::direct(parking->geod(), reverseHeading, 6,
                     pos, az);
-    wpt = createOnGround(ac, "parking4", pos, aptElev, vTaxiReduced/3);
+    wpt = createOnGround(ac, "parking4", pos, aptElev, 2);
     pushBackWaypoint(wpt);
 
-    SGGeodesy::direct(parking->geod(), reverseHeading, 0.2 * parking->getRadius(),
+    SGGeodesy::direct(parking->geod(), reverseHeading, 3,
                     pos, az);
-    wpt = createOnGround(ac, "parking5", pos, aptElev, vTaxiReduced/3);
+    wpt = createOnGround(ac, "parking5", pos, aptElev, 2);
     pushBackWaypoint(wpt);
 
     char buffer[30];
-    snprintf(buffer, sizeof(buffer), "Parking%s", parking->getName().c_str());
+    snprintf(buffer, sizeof(buffer), "Parking-%s", parking->getName().c_str());
 
     wpt = createOnGround(ac, buffer, parking->geod(), aptElev, vTaxiReduced/3);
     pushBackWaypoint(wpt);

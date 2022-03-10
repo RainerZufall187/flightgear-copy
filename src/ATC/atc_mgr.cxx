@@ -347,7 +347,7 @@ void FGATCManager::update ( double time ) {
 #endif
     }
     if (fp) {
-        SG_LOG(SG_ATC, SG_DEBUG, "Currently at leg : " << fp->getLeg());
+        SG_LOG(SG_ATC, SG_DEBUG, "User aircraft currently at leg : " << fp->getLeg());
     }
 
     // Call getATCController method; returns what FGATCController presently controls the user aircraft
