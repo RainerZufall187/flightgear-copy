@@ -92,6 +92,7 @@ public:
 
     void deleteModule(const char* moduleName);
 
+    naRef getModule(const std::string& moduleName) const;
     naRef getModule(const char* moduleName);
 
     bool addCommand(naRef func, const std::string& name);
@@ -155,12 +156,20 @@ public:
 
     string_list getAndClearErrorList();
 
+    /**
+     @brief Convert the value of an SGPropertyNode to its Nasal representation. Used by
+     props.Node.getValue internally, but exposed here for other use cases which don't want to create
+     a props.Node wrapper each time.
+     */
+    static naRef getPropertyValue(naContext c, SGPropertyNode* node);
+
 private:
     void initLogLevelConstants();
 
     void loadPropertyScripts();
     void loadPropertyScripts(SGPropertyNode* n);
-    void loadScriptDirectory(simgear::Dir nasalDir, SGPropertyNode* loadorder);
+    void loadScriptDirectory(simgear::Dir nasalDir, SGPropertyNode* loadorder,
+                             bool excludeUnspecifiedInLoadOrder);
     void addModule(std::string moduleName, simgear::PathList scripts);
     static void logError(naContext);
     naRef parse(naContext ctx, const char* filename, const char* buf, int len,

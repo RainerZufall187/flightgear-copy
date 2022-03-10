@@ -21,9 +21,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
+#include <config.h>
 
 #include <string>
 #include <stdio.h>
@@ -80,7 +78,8 @@ bool FGAIMultiplayer::init(ModelSearchOrder searchOrder)
     return result;
 }
 
-void FGAIMultiplayer::bind() {
+void FGAIMultiplayer::bind()
+{
     FGAIBase::bind();
 
     //2018.1 mp-clock-mode indicates the clock mode that the client is running, so for backwards
@@ -99,6 +98,9 @@ void FGAIMultiplayer::bind() {
     m_node_ai_latch = props->getNode("ai-latch", true /*create*/);
     m_node_log_multiplayer = globals->get_props()->getNode("/sim/log-multiplayer-callsign", true /*create*/);
     
+    m_lagPPSAveragedNode = props->getNode("lag/pps-averaged", true);
+    m_lagModAveragedNode =  props->getNode("lag/lag-mod-averaged", true);
+
 #define AIMPROProp(type, name) \
 SGRawValueMethods<FGAIMultiplayer, type>(*this, &FGAIMultiplayer::get##name)
 
@@ -379,12 +381,8 @@ static void s_MotionLogging(const std::string& _callsign, double tInterp, SGVec3
                 n->setStringValue(buffer);
             }
 
-            SGGeod  user_pos_geod = SGGeod::fromDegFt(
-                    fgGetDouble("/position/longitude-deg"),
-                    fgGetDouble("/position/latitude-deg"),
-                    fgGetDouble("/position/altitude-ft")
-                    );
-            SGVec3d user_pos = SGVec3d::fromGeod(user_pos_geod);
+            SGGeod  user_pos_geod = globals->get_aircraft_position();
+            SGVec3d user_pos = globals->get_aircraft_position_cart();
 
             double user_to_mp_distance = SGGeodesy::distanceM(user_pos_geod, pos_geod);
             double user_to_mp_bearing = SGGeodesy::courseDeg(user_pos_geod, pos_geod);
@@ -489,8 +487,8 @@ void FGAIMultiplayer::update(double dt)
             mTimeOffset = curentPkgTime - curtime - lag;
             lastTime = curentPkgTime;
             lagModAveraged = remainder((curentPkgTime - curtime), 3600.0);
-            props->setDoubleValue("lag/pps-averaged", lagPpsAveraged);
-            props->setDoubleValue("lag/lag-mod-averaged", lagModAveraged);
+            m_lagPPSAveragedNode->setDoubleValue(lagPpsAveraged);
+            m_lagModAveragedNode->setDoubleValue(lagModAveraged);
         }
         else
         {
@@ -500,8 +498,8 @@ void FGAIMultiplayer::update(double dt)
                 lastTime = curentPkgTime;
                 rawLagMod = remainder(rawLag, 3600.0);
                 lagModAveraged = lagModAveraged *0.99 + 0.01 * rawLagMod;
-                props->setDoubleValue("lag/pps-averaged", lagPpsAveraged);
-                props->setDoubleValue("lag/lag-mod-averaged", lagModAveraged);
+                m_lagPPSAveragedNode->setDoubleValue(lagPpsAveraged);
+                m_lagModAveragedNode->setDoubleValue(lagModAveraged);
             }
 
             double offset = 0.0;
@@ -830,12 +828,12 @@ FGAIMultiplayer::addMotionInfo(FGExternalMotionData& motionInfo,
             // m_simple_time_offset_smoothed will usually be too big to be
             // useful here.
             //
-            props->setDoubleValue("lag/lag-mod-averaged", 0);
+            m_lagModAveragedNode->setDoubleValue(0.0);
         }
         else
         {
             m_simple_time_compensation = 0;
-            props->setDoubleValue("lag/lag-mod-averaged", m_simple_time_offset_smoothed);
+            m_lagModAveragedNode->setDoubleValue(m_simple_time_offset_smoothed);
         }
         
         m_node_simple_time_latest->setDoubleValue(motionInfo.time);
@@ -851,7 +849,7 @@ FGAIMultiplayer::addMotionInfo(FGExternalMotionData& motionInfo,
             {
                 double ep = 0.05;
                 lagPpsAveraged = (1-ep) * lagPpsAveraged + ep * (1/dt);
-                props->setDoubleValue("lag/pps-averaged", lagPpsAveraged);
+                m_lagPPSAveragedNode->setDoubleValue(lagPpsAveraged);
             }
         }
 

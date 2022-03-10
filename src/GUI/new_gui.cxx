@@ -1,8 +1,6 @@
 // new_gui.cxx: implementation of XML-configurable GUI support.
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
+#include <config.h>
 
 #include "new_gui.hxx"
 
@@ -20,6 +18,7 @@
 #include <Add-ons/AddonManager.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>
+#include <Scripting/NasalSys.hxx>
 
 #if defined(SG_UNIX) && !defined(SG_MAC) 
 #include "GL/glx.h"
@@ -35,7 +34,17 @@
 #include "FGWindowsMenuBar.hxx"
 #endif
 
+#if defined(HAVE_PUI)
+    #include <plib/puAux.h>
+#endif
+
+#if defined(ENABLE_PUICOMPAT)
+#include "FGPUICompatDialog.hxx"
+#include "PUICompatObject.hxx"
+#else
 #include "FGPUIDialog.hxx"
+#endif
+
 #include "FGFontCache.hxx"
 #include "FGColor.hxx"
 
@@ -54,9 +63,7 @@ extern void puCleanUpJunk(void);
 ////////////////////////////////////////////////////////////////////////
 
 
-
-NewGUI::NewGUI () :
-  _active_dialog(0)
+NewGUI::NewGUI()
 {
 }
 
@@ -121,18 +128,20 @@ NewGUI::init ()
     SGPath p(globals->get_fg_root(), "gui/dialogs");
     readDir(p);
     
-    SGPath aircraftDialogDir(fgGetString("/sim/aircraft-dir"), "gui/dialogs");
-    if (aircraftDialogDir.exists()) {
-        readDir(aircraftDialogDir);
-    }
+    if (fgGetBool("/sim/gui/startup") == false) {
+        SGPath aircraftDialogDir(fgGetString("/sim/aircraft-dir"), "gui/dialogs");
+        if (aircraftDialogDir.exists()) {
+            readDir(aircraftDialogDir);
+        }
 
-    // Read XML dialogs made available by registered add-ons
-    const auto& addonManager = flightgear::addons::AddonManager::instance();
-    for (const auto& addon: addonManager->registeredAddons()) {
-        SGPath addonDialogDir = addon->getBasePath() / "gui/dialogs";
+        // Read XML dialogs made available by registered add-ons
+        const auto& addonManager = flightgear::addons::AddonManager::instance();
+        for (const auto& addon: addonManager->registeredAddons()) {
+            SGPath addonDialogDir = addon->getBasePath() / "gui/dialogs";
 
-        if (addonDialogDir.exists()) {
-            readDir(addonDialogDir);
+            if (addonDialogDir.exists()) {
+                readDir(addonDialogDir);
+            }
         }
     }
 
@@ -145,12 +154,9 @@ NewGUI::init ()
 void
 NewGUI::shutdown()
 {
-    DialogDict::iterator it = _active_dialogs.begin();
-    for (; it != _active_dialogs.end(); ++it) {
-        delete it->second;
-    }
     _active_dialogs.clear();
-    
+    _active_dialog.clear();
+
     fgUntie("/sim/menubar/visibility");
     _menubar.reset();
     _dialog_props.clear();
@@ -233,11 +239,24 @@ NewGUI::unbind ()
 {
 }
 
+void NewGUI::postinit()
+{
+#if defined(ENABLE_PUICOMPAT)
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    nasal::Context ctx;
+    nasal::Hash guiModule{nas->getModule("gui"), ctx};
+    nasal::Hash compatModule = guiModule.createHash("xml");
+
+    FGPUICompatDialog::setupGhost(compatModule);
+    PUICompatObject::setupGhost(compatModule);
+#endif
+}
+
 void
 NewGUI::update (double delta_time_sec)
 {
     SG_UNUSED(delta_time_sec);
-    map<string,FGDialog *>::iterator iter = _active_dialogs.begin();
+    auto iter = _active_dialogs.begin();
     for(/**/; iter != _active_dialogs.end(); iter++)
         iter->second->update();
 }
@@ -265,7 +284,18 @@ NewGUI::showDialog (const string &name)
 
     flightgear::addSentryBreadcrumb("showing GUI dialog:" + name, "info");
 
+#if !defined(ENABLE_PUICOMPAT)
     _active_dialogs[name] = new FGPUIDialog(getDialogProperties(name));
+#else
+    SGSharedPtr<FGPUICompatDialog> pcd = new FGPUICompatDialog(getDialogProperties(name));
+    if (pcd->init()) {
+        _active_dialogs[name] = pcd; // establish ownership
+    } else {
+        return false;
+    }
+
+
+#endif
     fgSetString("/sim/gui/dialogs/current-dialog", name);
 
 //    setActiveDialog(new FGPUIDialog(getDialogProperties(name)));
@@ -294,7 +324,7 @@ NewGUI::closeActiveDialog ()
     // Kill any entries in _active_dialogs...  Is there an STL
     // algorithm to do (delete map entries by value, not key)?  I hate
     // the STL :) -Andy
-    map<string,FGDialog *>::iterator iter = _active_dialogs.begin();
+    auto iter = _active_dialogs.begin();
     for(/**/; iter != _active_dialogs.end(); iter++) {
         if(iter->second == _active_dialog) {
             _active_dialogs.erase(iter);
@@ -303,10 +333,8 @@ NewGUI::closeActiveDialog ()
         }
     }
 
-    delete _active_dialog;
     _active_dialog = 0;
-    if (_active_dialogs.size())
-    {
+    if (!_active_dialogs.empty()) {
         fgSetString("/sim/gui/dialogs/current-dialog", _active_dialogs.begin()->second->getName());
     }
     return true;
@@ -319,8 +347,8 @@ NewGUI::closeDialog (const string& name)
         flightgear::addSentryBreadcrumb("closing GUI dialog:" + name, "info");
 
         if(_active_dialog == _active_dialogs[name])
-            _active_dialog = 0;
-        delete _active_dialogs[name];
+            _active_dialog.clear();
+
         _active_dialogs.erase(name);
         return true;
     }
@@ -353,8 +381,8 @@ NewGUI::getDialogProperties (const string &name)
     return it->second;
 }
 
-FGDialog *
-NewGUI::getDialog (const string &name)
+NewGUI::FGDialogRef
+NewGUI::getDialog(const string& name)
 {
     if(_active_dialogs.find(name) != _active_dialogs.end())
         return _active_dialogs[name];
@@ -372,8 +400,8 @@ NewGUI::setActiveDialog (FGDialog * dialog)
     _active_dialog = dialog;
 }
 
-FGDialog *
-NewGUI::getActiveDialog ()
+NewGUI::FGDialogRef
+NewGUI::getActiveDialog()
 {
     return _active_dialog;
 }
@@ -569,15 +597,19 @@ NewGUI::setStyle (void)
     }
 
     FGColor *c = _colors["background"];
+#if defined(HAVE_PUI)
     puSetDefaultColourScheme(c->red(), c->green(), c->blue(), c->alpha());
+#endif
 }
 
 
 void
 NewGUI::setupFont (SGPropertyNode *node)
 {
+#if defined(HAVE_PUI)
     _font = FGFontCache::instance()->get(node);
     puSetDefaultFonts(*_font, *_font);
+#endif
     return;
 }
 
