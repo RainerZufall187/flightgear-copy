@@ -416,9 +416,6 @@ void FGAIAircraft::ProcessFlightPlan( double dt, time_t now ) {
         if (next && !curr->contains("END") && !curr->contains("PushBackPointlegend")) {
             SG_LOG(SG_AI, SG_BULK, getCallSign() << "|Setting Leaddistance");
             fp->setLeadDistance(tgt_speed, tgt_heading, curr, next);
-        } else {
-        // If we are ending in a parking
-            fp->setLeadDistance(1);
         }
 
         // Calculate a target altitude for any leg in which at least one waypoint is in the air.
@@ -850,8 +847,6 @@ void FGAIAircraft::handleFirstWaypoint() {
     // If we are ending in a parking
     if (next && !curr->contains("END") && !curr->contains("PushBackPointlegend")) {
         fp->setLeadDistance(speed, hdg, curr, next);
-    } else {
-        fp->setLeadDistance(1);
     }
 
     if (curr->getCrossat() > -1000.0) //use a calculated descent/climb rate
@@ -1115,9 +1110,6 @@ void FGAIAircraft::controlSpeed(FGAIWaypoint* curr, FGAIWaypoint* next) {
         if (next) {
             if (!curr->contains("END") && !curr->contains("PushBackPointlegend")) {
                 fp->setLeadDistance(speed, tgt_heading, curr, next);
-            } else {
-            // If we are ending in a parking the heading will be a
-                fp->setLeadDistance(1);
             }
         }
     }
@@ -1454,7 +1446,7 @@ bool FGAIAircraft::reachedEndOfCruise(double &distance) {
 
         double verticalDistance  = ((altitude_ft - 2000.0) - trafficRef->getArrivalAirport()->getElevation()) *SG_FEET_TO_METER;
         double descentTimeNeeded = verticalDistance / descentRate;
-        double distanceCovered   = descentSpeed * descentTimeNeeded;
+        double distanceCoveredByDescent   = descentSpeed * descentTimeNeeded;
 
         if (tracked) {
             SG_LOG(SG_AI, SG_DEBUG, "Checking for end of cruise stage for :" << trafficRef->getCallSign());
@@ -1462,11 +1454,11 @@ bool FGAIAircraft::reachedEndOfCruise(double &distance) {
             SG_LOG(SG_AI, SG_DEBUG, "Descent speed     : " << descentSpeed);
             SG_LOG(SG_AI, SG_DEBUG, "VerticalDistance  : " << verticalDistance << ". Altitude : " << altitude_ft << ". Elevation " << trafficRef->getArrivalAirport()->getElevation());
             SG_LOG(SG_AI, SG_DEBUG, "DecentTimeNeeded  : " << descentTimeNeeded);
-            SG_LOG(SG_AI, SG_DEBUG, "DistanceCovered   : " << distanceCovered);
+            SG_LOG(SG_AI, SG_DEBUG, "DistanceCovered   : " << distanceCoveredByDescent);
         }
 
-        distance = distanceCovered;
-        if (dist < distanceCovered) {
+        distance = distanceCoveredByDescent;
+        if (dist < distanceCoveredByDescent) {
             SG_LOG(SG_AI, SG_BULK, "End Of Cruise");
             return true;
         } else {
