@@ -1,119 +1,104 @@
-// dbusconnection.h
-// 
-// Copyright (C) 2019 - swift Project Community / Contributors (http://swift-project.org/)
-// Adapted to Flightgear by Lars Toenning <dev@ltoenning.de>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+/*
+ * SPDX-FileCopyrightText: (C) 2019-2022 swift Project Community / Contributors (https://swift-project.org/)
+ * SPDX-FileCopyrightText: (C) 2019-2022 Lars Toenning <dev@ltoenning.de>
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #ifndef BLACKSIM_FGSWIFTBUS_DBUSCONNECTION_H
 #define BLACKSIM_FGSWIFTBUS_DBUSCONNECTION_H
 
-#include "dbusmessage.h"
-#include "dbuserror.h"
 #include "dbuscallbacks.h"
 #include "dbusdispatcher.h"
+#include "dbuserror.h"
+#include "dbusmessage.h"
 
-#include <event2/event.h>
 #include <dbus/dbus.h>
+#include <event2/event.h>
+#include <memory>
 #include <string>
 #include <unordered_map>
-#include <memory>
 
-namespace FGSwiftBus
+namespace FGSwiftBus {
+
+class CDBusObject;
+
+//! DBus connection
+class CDBusConnection : public IDispatchable
 {
+public:
+    //! Bus type
+    enum BusType { SessionBus };
 
-    class CDBusObject;
+    //! Disconnect Callback
+    using DisconnectedCallback = std::function<void()>;
 
-    //! DBus connection
-    class CDBusConnection : public IDispatchable
-    {
-    public:
-        //! Bus type
-        enum BusType { SessionBus };
+    //! Default constructor
+    CDBusConnection();
 
-        //! Disconnect Callback
-        using DisconnectedCallback = std::function<void()>;
+    //! Constructor
+    CDBusConnection(DBusConnection* connection);
 
-        //! Default constructor
-        CDBusConnection();
+    //! Destructor
+    ~CDBusConnection() override;
 
-        //! Constructor
-        CDBusConnection(DBusConnection *connection);
+    // The ones below are not implemented yet.
+    // If you need them, make sure that connection reference count is correct
+    CDBusConnection(const CDBusConnection&) = delete;
+    CDBusConnection& operator=(const CDBusConnection&) = delete;
 
-        //! Destructor
-        ~CDBusConnection() override;
+    //! Connect to bus
+    bool connect(BusType type);
 
-        // The ones below are not implemented yet.
-        // If you need them, make sure that connection reference count is correct
-        CDBusConnection(const CDBusConnection &) = delete;
-        CDBusConnection &operator=(const CDBusConnection &) = delete;
+    //! Set dispatcher
+    void setDispatcher(CDBusDispatcher* dispatcher);
 
-        //! Connect to bus
-        bool connect(BusType type);
+    //! Request name to the bus
+    void requestName(const std::string& name);
 
-        //! Set dispatcher
-        void setDispatcher(CDBusDispatcher *dispatcher);
+    //! Is connected?
+    bool isConnected() const;
 
-        //! Request name to the bus
-        void requestName(const std::string &name);
+    //! Register a disconnected callback
+    void registerDisconnectedCallback(CDBusObject* obj, DisconnectedCallback func);
 
-        //! Is connected?
-        bool isConnected() const;
+    //! Register a disconnected callback
+    void unregisterDisconnectedCallback(CDBusObject* obj);
 
-        //! Register a disconnected callback
-        void registerDisconnectedCallback(CDBusObject *obj, DisconnectedCallback func);
+    //! Register DBus object with interfaceName and objectPath.
+    //! \param object
+    //! \param interfaceName
+    //! \param objectPath
+    //! \param dbusObjectPathVTable Virtual table handling DBus messages
+    void registerObjectPath(CDBusObject* object, const std::string& interfaceName, const std::string& objectPath, const DBusObjectPathVTable& dbusObjectPathVTable);
 
-        //! Register a disconnected callback
-        void unregisterDisconnectedCallback(CDBusObject *obj);
+    //! Send message to bus
+    void sendMessage(const CDBusMessage& message);
 
-        //! Register DBus object with interfaceName and objectPath.
-        //! \param object
-        //! \param interfaceName
-        //! \param objectPath
-        //! \param dbusObjectPathVTable Virtual table handling DBus messages
-        void registerObjectPath(CDBusObject *object, const std::string &interfaceName, const std::string &objectPath, const DBusObjectPathVTable &dbusObjectPathVTable);
+    //! Close connection
+    void close();
 
-        //! Send message to bus
-        void sendMessage(const CDBusMessage &message);
+    //! Get the last error
+    CDBusError lastError() const { return m_lastError; }
 
-        //! Close connection
-        void close();
+protected:
+    // cppcheck-suppress virtualCallInConstructor
+    virtual void dispatch() override final;
 
-        //! Get the last error
-        CDBusError lastError() const { return m_lastError; }
+private:
+    void setDispatchStatus(DBusConnection* connection, DBusDispatchStatus status);
+    static void setDispatchStatus(DBusConnection* connection, DBusDispatchStatus status, void* data);
+    static DBusHandlerResult filterDisconnectedFunction(DBusConnection* connection, DBusMessage* message, void* data);
 
-    protected:
-        // cppcheck-suppress virtualCallInConstructor
-        virtual void dispatch() override final;
-
-    private:
-        void setDispatchStatus(DBusConnection *connection, DBusDispatchStatus status);
-        static void setDispatchStatus(DBusConnection *connection, DBusDispatchStatus status, void *data);
-        static DBusHandlerResult filterDisconnectedFunction(DBusConnection *connection, DBusMessage *message, void *data);
-
-        struct DBusConnectionDeleter
-        {
-            void operator()(DBusConnection *obj) const { dbus_connection_unref(obj); }
-        };
-
-        CDBusDispatcher *m_dispatcher = nullptr;
-        std::unique_ptr<DBusConnection, DBusConnectionDeleter> m_connection;
-        CDBusError m_lastError;
-        std::unordered_map<CDBusObject *, DisconnectedCallback> m_disconnectedCallbacks;
+    struct DBusConnectionDeleter {
+        void operator()(DBusConnection* obj) const { dbus_connection_unref(obj); }
     };
 
-}
+    CDBusDispatcher* m_dispatcher = nullptr;
+    std::unique_ptr<DBusConnection, DBusConnectionDeleter> m_connection;
+    CDBusError m_lastError;
+    std::unordered_map<CDBusObject*, DisconnectedCallback> m_disconnectedCallbacks;
+};
+
+} // namespace FGSwiftBus
 
 #endif // guard

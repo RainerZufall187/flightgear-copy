@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <cstring>
 
+#include <simgear/debug/logstream.hxx>
+
 #include <Main/fg_props.hxx>
 
 #include "yasim-common.hpp"
@@ -1039,8 +1041,18 @@ void FGFDM::parseGear(const XMLAttributes* a)
     float v[3];
     Gear* g = new Gear();
     _currObj = g;
-    attrf_xyz(a, v);
+    
+    /* Override (x, y, z) with wheel-* if specified. */
+    if (a->hasAttribute("wheel-x")) {
+        v[0] = attrf(a, "wheel-x");
+        v[1] = attrf(a, "wheel-y");
+        v[2] = attrf(a, "wheel-z");
+    }
+    else {
+        attrf_xyz(a, v);
+    }
     g->setPosition(v);
+    
     float nrm = Math::mag3(v);
     if (_vehicle_radius < nrm)
         _vehicle_radius = nrm;
@@ -1057,6 +1069,22 @@ void FGFDM::parseGear(const XMLAttributes* a)
     for(int i=0; i<3; i++)
         v[i] *= attrf(a, "compression", 1);
     g->setCompression(v);
+    
+    if (a->hasAttribute("wheel-axle-x")) {
+        v[0] = attrf(a, "wheel-axle-x");
+        v[1] = attrf(a, "wheel-axle-y");
+        v[2] = attrf(a, "wheel-axle-z");
+    }
+    else {
+        v[0] = 0;
+        v[1] = 1;
+        v[2] = 0;
+    }
+    g->setWheelAxle( v);
+    
+    g->setWheelRadius( attrf(a, "wheel-radius", 0));
+    g->setTyreRadius( attrf(a, "tyre-radius", 0));
+    
     g->setBrake(attrf(a, "skid", 0));
     g->setInitialLoad(attrf(a, "initial-load", 0));
     g->setStaticFriction(attrf(a, "sfric", 0.8));
