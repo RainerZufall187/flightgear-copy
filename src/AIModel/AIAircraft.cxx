@@ -1449,12 +1449,12 @@ bool FGAIAircraft::reachedEndOfCruise(double &distance) {
         double distanceCoveredByDescent   = descentSpeed * descentTimeNeeded;
 
         if (tracked) {
-            SG_LOG(SG_AI, SG_DEBUG, "Checking for end of cruise stage for :" << trafficRef->getCallSign());
-            SG_LOG(SG_AI, SG_DEBUG, "Descent rate      : " << descentRate);
-            SG_LOG(SG_AI, SG_DEBUG, "Descent speed     : " << descentSpeed);
-            SG_LOG(SG_AI, SG_DEBUG, "VerticalDistance  : " << verticalDistance << ". Altitude : " << altitude_ft << ". Elevation " << trafficRef->getArrivalAirport()->getElevation());
-            SG_LOG(SG_AI, SG_DEBUG, "DecentTimeNeeded  : " << descentTimeNeeded);
-            SG_LOG(SG_AI, SG_DEBUG, "DistanceCovered   : " << distanceCoveredByDescent);
+            SG_LOG(SG_AI, SG_BULK, "Checking for end of cruise stage for :" << trafficRef->getCallSign());
+            SG_LOG(SG_AI, SG_BULK, "Descent rate      : " << descentRate);
+            SG_LOG(SG_AI, SG_BULK, "Descent speed     : " << descentSpeed);
+            SG_LOG(SG_AI, SG_BULK, "VerticalDistance  : " << verticalDistance << ". Altitude : " << altitude_ft << ". Elevation " << trafficRef->getArrivalAirport()->getElevation());
+            SG_LOG(SG_AI, SG_BULK, "DecentTimeNeeded  : " << descentTimeNeeded);
+            SG_LOG(SG_AI, SG_BULK, "DistanceCovered   : " << distanceCoveredByDescent);
         }
 
         distance = distanceCoveredByDescent;
@@ -1599,6 +1599,7 @@ void FGAIAircraft::dumpCSVHeader(std::unique_ptr<sg_ofstream> &o) {
     (*o) << "Index\t";
     (*o) <<  "Lat\t";
     (*o) <<  "Lon\t";
+    (*o) <<  "Alt\t";
     (*o) <<  "Callsign\t";
     (*o) <<  "headingDiff\t";
     (*o) <<  "headingChangeRate\t";
@@ -1645,6 +1646,7 @@ void FGAIAircraft::dumpCSV(std::unique_ptr<sg_ofstream> &o, int lineIndex) {
     (*o) <<  setprecision(12);
     (*o) <<  this->getGeodPos().getLatitudeDeg() << "\t";
     (*o) <<  this->getGeodPos().getLongitudeDeg() << "\t";
+    (*o) <<  this->getGeodPos().getElevationFt() << "\t";
     (*o) <<  this->getCallSign() << "\t";
     (*o) <<  headingDiff << "\t";
     (*o) <<  headingChangeRate << "\t";

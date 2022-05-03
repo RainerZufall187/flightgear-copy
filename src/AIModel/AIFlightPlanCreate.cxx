@@ -769,9 +769,10 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft * ac, FGAirport * apt,
     double distanceOut = apt->getDynamics()->getApproachController()->getRunway(rwy->name())->getApproachDistance();    //12 * SG_NM_TO_METER;
     //time_t previousArrivalTime=  apt->getDynamics()->getApproachController()->getRunway(rwy->name())->getEstApproachTime();
 
-    const double headingDiffRunway = ac->getBearing(rwy->headingDeg());
+    // tells us the direction we have to turn
+    const double headingDiffRunway = SGMiscd::normalizePeriodic(-180, 180, ac->getTrueHeadingDeg() - rwy->headingDeg());
     double lateralOffset = initialTurnRadius;
-    if (headingDiffRunway < 0.0) {
+    if (headingDiffRunway > 0.0) {
         lateralOffset *= -1.0;
     }
 
@@ -790,13 +791,13 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft * ac, FGAirport * apt,
     SG_LOG(SG_AI, SG_BULK, " Heading Diff " << headingDiffRunway <<
                            " Distance " << distance <<
                            " Azimuth : " << azimuth <<
-                           " Heading : " << ac->getTrueHeadingDeg() );
+                           " Heading : " << ac->getTrueHeadingDeg() << " Lateral : " << lateralOffset);
 
     if (fabs(headingDiffRunway)>=30) {
         // Entering not "straight" into runway so we do a s-curve
-        int rightAngle = initialHeadingDiff>0?-90:90;
+        int rightAngle = initialHeadingDiff<0?90:-90;
         SGGeod firstTurnCenter = SGGeodesy::direct(current, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
-        int firstTurnIncrement = initialHeadingDiff>0?-2:2;
+        int firstTurnIncrement = initialHeadingDiff<0?2:-2;
         const double heading = VectorMath::innerTangentsAngle(firstTurnCenter, secondaryTarget, initialTurnRadius, initialTurnRadius )[0];
         createArc(ac, firstTurnCenter, ac->_getHeading()-rightAngle, heading-rightAngle, firstTurnIncrement, initialTurnRadius, ac->getAltitude(), vDescent, "initialturn%03d");
         double length = VectorMath::innerTangentsLength(firstTurnCenter, secondaryTarget, initialTurnRadius, initialTurnRadius );

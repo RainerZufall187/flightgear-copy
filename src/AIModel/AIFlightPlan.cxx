@@ -213,7 +213,7 @@ void FGAIFlightPlan::createWaypoints(FGAIAircraft *ac,
    leg = 5;
    */
 
-    SG_LOG(SG_AI, SG_BULK, "Route from " << dep->getId() << " to " << arr->getId() <<
+    SG_LOG(SG_AI, SG_DEBUG, "Route from " << dep->getId() << " to " << arr->getId() <<
            ". Set leg to : " << leg << " " << ac->getTrafficRef()->getCallSign());
 
   wpt_iterator = waypoints.begin();

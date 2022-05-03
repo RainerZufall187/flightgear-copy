@@ -293,7 +293,13 @@ bool FGAIFlightPlan::createCruise(FGAIAircraft *ac, bool firstFlight, FGAirport 
   FGAIWaypoint *wpt;
   //FIXME usually that will be "before" the next WP
   wpt = createInAir(ac, "Cruise", current, alt, vCruise);
-  // pushBackWaypoint(wpt);
+  if (waypoints.size() == 0) {
+    pushBackWaypoint(wpt);
+    SG_LOG(SG_AI, SG_DEBUG, "Cruise spawn " << ac->getCallSign());
+  } else {
+    SG_LOG(SG_AI, SG_DEBUG, "Cruise start " << ac->getCallSign());
+  }
+  //
 
   const string& rwyClass = getRunwayClassFromTrafficType(fltType);
   double heading = ac->getTrafficRef()->getCourse();
