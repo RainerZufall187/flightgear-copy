@@ -60,7 +60,9 @@
 #include <Scenery/scenery.hxx>
 #include <Sound/soundmanager.hxx>
 #include <Time/TimeManager.hxx>
+#include <Viewer/CameraGroup.hxx>
 #include <Viewer/GraphicsPresets.hxx>
+#include <Viewer/StartupUIController.hxx>
 #include <Viewer/WindowSystemAdapter.hxx>
 #include <Viewer/renderer.hxx>
 #include <Viewer/splash.hxx>
@@ -314,8 +316,8 @@ static void fgIdleFunction ( void ) {
     // splash screen up and running right away.
 
     if ( idle_state == 0 ) {
-        if (guiInit())
-        {
+        auto camera = flightgear::getGUICamera(flightgear::CameraGroup::getDefault());
+        if (guiInit(camera->getGraphicsContext())) {
             checkOpenGLVersion();
             fgSetVideoOptions();
             idle_state+=2;
