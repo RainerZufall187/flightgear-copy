@@ -1080,7 +1080,7 @@ osgViewer::View* FGRenderer::getView()
     But this fails if user specifies -h, when we are called by
     FGGlobals::~FGGlobals().
     */
-    if (composite_viewer) {
+    if (composite_viewer && composite_viewer->getNumViews() > 0) {
         assert(composite_viewer->getNumViews());
         return composite_viewer->getView(0);
     }
