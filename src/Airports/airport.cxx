@@ -13,10 +13,11 @@
 #include <algorithm>
 #include <cassert>
 
+#include <simgear/debug/ErrorReportingCallback.hxx>
+#include <simgear/debug/logstream.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/props/props.hxx>
 #include <simgear/props/props_io.hxx>
-#include <simgear/debug/logstream.hxx>
 #include <simgear/sg_inlines.h>
 #include <simgear/structure/exception.hxx>
 
@@ -618,7 +619,9 @@ void FGAirport::loadSceneryDefinitions() const
     readProperties(path, rootNode);
     const_cast<FGAirport*>(this)->readThresholdData(rootNode);
   } catch (sg_exception& e) {
-    SG_LOG(SG_NAVAID, SG_WARN, ident() << "loading threshold XML failed:" << e.getFormattedMessage());
+    simgear::reportFailure(simgear::LoadFailure::BadData, simgear::ErrorCode::TerraSync,
+                           "Airport threshold data could not be loaded:" + e.getFormattedMessage(),
+                           path);
   }
 }
 
@@ -629,8 +632,10 @@ void FGAirport::readThresholdData(SGPropertyNode* aRoot)
   for (; (runway = aRoot->getChild("runway", runwayIndex)) != NULL; ++runwayIndex) {
     SGPropertyNode* t0 = runway->getChild("threshold", 0),
       *t1 = runway->getChild("threshold", 1);
-    assert(t0);
-    assert(t1); // too strict? maybe we should finally allow single-ended runways
+    if (!t0 || !t1) {
+      throw sg_io_exception("Mis-configured runway threshold data: exactly two thresholds must be defined",
+                            sg_location{runway}, "FGAirport::readThresholdData", false);
+    }
 
     processThreshold(t0);
     processThreshold(t1);
@@ -653,11 +658,13 @@ void FGAirport::processThreshold(SGPropertyNode* aThreshold)
   double newStopway = aThreshold->getDoubleValue("stopw-m");
 
   if (id == 0) {
-    SG_LOG(SG_GENERAL, SG_DEBUG, "FGAirport::processThreshold: "
-           "found runway not defined in the global data:" << ident() << "/" << rwyIdent);
+    const auto runwayIdent = ident() + "/" + rwyIdent;
     // enable this code when threshold.xml contains sufficient data to
     // fully specify a new runway, *and* we figure out how to assign runtime
     // Positioned IDs and insert temporary items into the spatial map.
+    throw sg_io_exception("Found runway not defined in global data:" + runwayIdent,
+                          sg_location{aThreshold}, "FGAirport::processThreshold", false);
+
 #if 0
     double newLength = 0.0, newWidth = 0.0;
     int surfaceCode = 0;
