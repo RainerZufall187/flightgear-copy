@@ -36,8 +36,6 @@
 #include "globals.hxx"
 #include "fg_props.hxx"
 
-static bool frozen = false;	// FIXME: temporary
-
 using std::string;
 ////////////////////////////////////////////////////////////////////////
 // Default property bindings (not yet handled by any module).
@@ -213,24 +211,27 @@ setLoggingPriority (const char * p)
 /**
  * Return the current frozen state.
  */
-static bool
-getFreeze ()
+bool FGProperties::getFreeze() const
 {
-  return frozen;
+  return _simFreeze;
 }
 
 
 /**
  * Set the current frozen state.
  */
-static void
-setFreeze (bool f)
+void FGProperties::setFreeze(bool f)
 {
-    frozen = f;
+  if (_simFreeze == f)
+      return;
 
-    // Pause the particle system
-    auto p = simgear::ParticlesGlobalManager::instance();
-    p->setFrozen(f);
+  _simFreeze = f;
+
+  // Pause the particle system
+  auto p = simgear::ParticlesGlobalManager::instance();
+  p->setFrozen(f);
+
+  _simFreezeNode->fireValueChanged();
 }
 
 
@@ -370,6 +371,9 @@ FGProperties::~FGProperties ()
 void
 FGProperties::init ()
 {
+  memset(&_lastUtc, 0, sizeof(struct tm));
+  memset(&_lastRealTime, 0, sizeof(struct tm));
+  _simFreeze = false;
 }
 
 static SGPropertyNode_ptr initDoubleNode(const std::string& path, const double v)
@@ -414,13 +418,15 @@ FGProperties::bind ()
   // Simulation
   _tiedProperties.Tie("/sim/logging/priority", getLoggingPriority, setLoggingPriority);
   _tiedProperties.Tie("/sim/logging/classes", getLoggingClasses, setLoggingClasses);
-  _tiedProperties.Tie("/sim/freeze/master", getFreeze, setFreeze);
+  _simFreezeNode = _tiedProperties.Tie("/sim/freeze/master", this, &FGProperties::getFreeze, &FGProperties::setFreeze);
+  _simFreezeNode->setAttribute(SGPropertyNode::LISTENER_SAFE, true);
 
   _tiedProperties.Tie<double>("/sim/time/elapsed-sec", getElapsedTime_sec);
-  _tiedProperties.Tie("/sim/time/gmt", getDateString, setDateString);
+  _timeGmtNode = _tiedProperties.Tie("/sim/time/gmt", getDateString, setDateString);
+  _timeGmtNode->setAttribute(SGPropertyNode::LISTENER_SAFE, true);
   fgSetArchivable("/sim/time/gmt");
-  _tiedProperties.Tie<const char*>("/sim/time/gmt-string", getGMTString);
-
+  _timeGmtStringNode = _tiedProperties.Tie<const char*>("/sim/time/gmt-string", getGMTString);
+  _timeGmtStringNode->setAttribute(SGPropertyNode::LISTENER_SAFE, true);
   // Position
   _tiedProperties.Tie<const char*>("/position/latitude-string", getLatitudeString);
   _tiedProperties.Tie<const char*>("/position/longitude-string", getLongitudeString);
@@ -441,6 +447,10 @@ FGProperties::unbind ()
     _longDeg = 0;
     _latDeg = 0;
     _lonLatformat = 0;
+
+    _timeGmtNode.clear();
+    _timeGmtStringNode.clear();
+    _simFreezeNode.clear();
 }
 
 void
@@ -450,26 +460,36 @@ FGProperties::update (double dt)
 
     // utc date/time
     struct tm *u = globals->get_time_params()->getGmt();
-    _uyear->setIntValue(u->tm_year + 1900);
-    _umonth->setIntValue(u->tm_mon + 1);
-    _uday->setIntValue(u->tm_mday);
-    _uhour->setIntValue(u->tm_hour);
-    _umin->setIntValue(u->tm_min);
-    _usec->setIntValue(u->tm_sec);
-    _uwday->setIntValue(u->tm_wday);
-    _udsec->setIntValue(u->tm_hour * 3600 + u->tm_min * 60 + u->tm_sec);
+    if (memcmp(u, &_lastUtc, sizeof(struct tm)) != 0) {
+        _lastUtc = *u;
+        _uyear->setIntValue(u->tm_year + 1900);
+        _umonth->setIntValue(u->tm_mon + 1);
+        _uday->setIntValue(u->tm_mday);
+        _uhour->setIntValue(u->tm_hour);
+        _umin->setIntValue(u->tm_min);
+        _usec->setIntValue(u->tm_sec);
+        _uwday->setIntValue(u->tm_wday);
+        _udsec->setIntValue(u->tm_hour * 3600 + u->tm_min * 60 + u->tm_sec);
+
+        _timeGmtNode->fireValueChanged();
+        _timeGmtStringNode->fireValueChanged();
+    }
+
 
     // real local date/time
     time_t real = time(0);
     struct tm *r = localtime(&real);
-    _ryear->setIntValue(r->tm_year + 1900);
-    _rmonth->setIntValue(r->tm_mon + 1);
-    _rday->setIntValue(r->tm_mday);
-    _rhour->setIntValue(r->tm_hour);
-    _rmin->setIntValue(r->tm_min);
-    _rsec->setIntValue(r->tm_sec);
-    _rwday->setIntValue(r->tm_wday);
-    
+    if (memcmp(r, &_lastRealTime, sizeof(struct tm)) != 0) {
+        _lastRealTime = *r;
+        _ryear->setIntValue(r->tm_year + 1900);
+        _rmonth->setIntValue(r->tm_mon + 1);
+        _rday->setIntValue(r->tm_mday);
+        _rhour->setIntValue(r->tm_hour);
+        _rmin->setIntValue(r->tm_min);
+        _rsec->setIntValue(r->tm_sec);
+        _rwday->setIntValue(r->tm_wday);
+    }
+
     const double magvar = _magVar->getDoubleValue();
     const auto hdgMag = SGMiscd::normalizePeriodic(0, 360.0, _trueHeading->getDoubleValue() - magvar);
     _headingMagnetic->setDoubleValue(hdgMag);

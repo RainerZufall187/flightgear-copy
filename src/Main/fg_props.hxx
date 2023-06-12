@@ -34,6 +34,9 @@ public:
     static const char* staticSubsystemClassId() { return "properties"; }
 
 private:
+    bool getFreeze() const;
+    void setFreeze(bool freeze);
+
     simgear::TiedPropertyList _tiedProperties;
 
     static const char* getLatitudeString ();
@@ -48,6 +51,13 @@ private:
     SGPropertyNode_ptr _headingMagnetic, _trackMagnetic;
     SGPropertyNode_ptr _magVar;
     SGPropertyNode_ptr _trueHeading, _trueTrack;
+
+    struct tm _lastUtc;
+    struct tm _lastRealTime;
+
+    bool _simFreeze = false;
+    SGPropertyNode_ptr _timeGmtNode, _timeGmtStringNode;
+    SGPropertyNode_ptr _simFreezeNode;
 };
 
 
