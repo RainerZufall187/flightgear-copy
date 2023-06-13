@@ -266,7 +266,7 @@ FGNavRadio::init ()
     // dme-in-range is deprecated,
     // temporarily create dme-in-range alias for instrumentation/dme[0]/in-range
     // remove after flightgear 2.6.0
-    node->getNode( "dme-in-range", true )->alias( fgGetNode("/instrumentation/dme[0]/in-range", true ) );
+    node->getNode("dme-in-range", true)->alias(fgGetNode("/instrumentation/dme[0]/in-range", true), false);
 }
 
 void

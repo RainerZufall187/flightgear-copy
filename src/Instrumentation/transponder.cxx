@@ -147,9 +147,9 @@ void Transponder::init()
     if (_kt70Compat) {
         // alias the properties through
         SGPropertyNode_ptr output = node->getChild("outputs", 0, true);
-        output->getChild("flight-level", 0, true)->alias(_altitude_node);
-        output->getChild("id-code", 0, true)->alias(_idCode_node);
-        in_node->getChild("func-knob", 0, true)->alias(_knob_node);
+        output->getChild("flight-level", 0, true)->alias(_altitude_node, true);
+        output->getChild("id-code", 0, true)->alias(_idCode_node, true);
+        in_node->getChild("func-knob", 0, true)->alias(_knob_node, true);
     }
 }
 

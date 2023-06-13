@@ -248,7 +248,7 @@ void FGReplayInternal::init()
     m_log_frame_times = fgGetNode("/sim/replay/log-frame-times", true);
 
     // alias to keep backward compatibility
-    fgGetNode("/sim/freeze/replay-state", true)->alias(m_replay_master);
+    fgGetNode("/sim/freeze/replay-state", true)->alias(m_replay_master, false);
 
     reinit();
 }

@@ -155,7 +155,7 @@ GPS::init ()
 // waypoints
   // for compatibility, alias selected course down to wp/wp[1]/desired-course-deg
   SGPropertyNode* wp1Crs = _currentWayptNode->getChild("desired-course-deg", 0, true);
-  wp1Crs->alias(_gpsNode->getChild("desired-course-deg", 0, true));
+  wp1Crs->alias(_gpsNode->getChild("desired-course-deg", 0, true), true);
 
   _tracking_bug_node = _gpsNode->getChild("tracking-bug", 0, true);
     
@@ -167,12 +167,12 @@ GPS::init ()
     
 // navradio slaving properties
   SGPropertyNode* toFlag = _gpsNode->getChild("to-flag", 0, true);
-  toFlag->alias(_currentWayptNode->getChild("to-flag"));
-  
+  toFlag->alias(_currentWayptNode->getChild("to-flag"), true);
+
   SGPropertyNode* fromFlag = _gpsNode->getChild("from-flag", 0, true);
-  fromFlag->alias(_currentWayptNode->getChild("from-flag"));
-    
-// autopilot drive properties
+  fromFlag->alias(_currentWayptNode->getChild("from-flag"), true);
+
+  // autopilot drive properties
   _apDrivingFlag = fgGetNode("/autopilot/settings/gps-driving-true-heading", true);
   _apTrueHeading = fgGetNode("/autopilot/settings/true-heading-deg",true);
 

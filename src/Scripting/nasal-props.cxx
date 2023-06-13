@@ -801,12 +801,18 @@ static naRef f_alias(naContext c, naRef me, int argc, naRef* args)
     try {
         if(naIsString(prop)) al = globals->get_props()->getNode(naStr_data(prop), true);
         else if(naIsGhost(prop)) al = static_cast<SGPropertyNode*>(naGhost_ptr(prop));
-        else throw string("props.alias() with bad argument");
-    } catch (const string& err) {
-        naRuntimeError(c, (char *)err.c_str());
+        else
+            throw sg_exception("props.alias() with bad argument");
+    } catch (sg_exception& err) {
+        naRuntimeError(c, err.what());
         return naNil();
     }
-    return naNum(node->alias(al));
+
+    bool withListeners = false;
+    if (naVec_size(argv) > 1) {
+        withListeners = static_cast<int>(naVec_get(argv, 1).num) != 0;
+    }
+    return naNum(node->alias(al, withListeners));
 }
 
 

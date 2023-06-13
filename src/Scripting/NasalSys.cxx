@@ -1864,7 +1864,7 @@ naRef FGNasalSys::setListener(naContext c, int argc, naRef* args)
         return naNil();
     }
 
-    if (node->isTied()) {
+    if (node->isTied() || node->isAlias()) {
         const auto isSafe = node->getAttribute(SGPropertyNode::LISTENER_SAFE);
         if (!isSafe) {
             SG_LOG(SG_NASAL, SG_DEV_ALERT, "ERROR: Cannot add listener to tied property " <<

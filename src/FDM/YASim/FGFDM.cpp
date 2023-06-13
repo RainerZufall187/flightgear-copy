@@ -115,7 +115,7 @@ void FGFDM::init()
     _gross_weight_lbs = _yasimN->getNode("gross-weight-lbs", true);
 
     // alias to older name
-    fgGetNode("/yasim/gross-weight-lbs", true)->alias(_gross_weight_lbs);
+    fgGetNode("/yasim/gross-weight-lbs", true)->alias(_gross_weight_lbs, false);
 
     // write some compile time information to property tree
     _yasimN->getNode("config-version",true)->setIntValue(_airplane.getVersion());

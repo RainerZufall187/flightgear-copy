@@ -198,8 +198,8 @@ FGJSBsim::FGJSBsim( double dt )
 // deprecate sim-time-sec for simulation/sim-time-sec
 // remove alias with increased configuration file version number (2.1 or later)
     SGPropertyNode * node = fgGetNode("/fdm/jsbsim/simulation/sim-time-sec");
-    fgGetNode("/fdm/jsbsim/sim-time-sec", true)->alias( node );
-// end of sim-time-sec deprecation patch
+    fgGetNode("/fdm/jsbsim/sim-time-sec", true)->alias(node, false);
+    // end of sim-time-sec deprecation patch
 
     _ai_wake_enabled = fgGetNode("fdm/ai-wake/enabled", true);
 

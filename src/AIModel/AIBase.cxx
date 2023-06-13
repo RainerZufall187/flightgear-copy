@@ -805,7 +805,7 @@ void FGAIBase::bind() {
     // The property above was incorrectly labelled 'longitude-mode' up until
     // FG 2018.4, so create an alias in case anyone is relying on the old name
     auto node = props->getNode("controls/flight/longitude-mode", true);
-    node->alias(props->getNode("controls/flight/vertical-mode"));
+    node->alias(props->getNode("controls/flight/vertical-mode"), false);
 
     props->setDoubleValue("controls/flight/target-alt", altitude_ft);
     props->setDoubleValue("controls/flight/target-pitch", pitch);
