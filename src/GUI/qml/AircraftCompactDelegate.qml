@@ -9,7 +9,7 @@ Item {
     signal showDetails(var uri)
 
     implicitHeight: Math.max(contentBox.childrenRect.height, thumbnailBox.height) +
-                    footer.height
+                    footer.height + Style.margin / 2
     implicitWidth: ListView.view.width
 
     readonly property bool __isSelected: (_launcher.selectedAircraft === model.uri)
@@ -47,6 +47,8 @@ Item {
         id: thumbnailBox
         width: 172
         height: 128
+        anchors.top: parent.top
+        anchors.topMargin: Style.margin / 2
 
         Rectangle {
             anchors.centerIn: parent
@@ -72,6 +74,7 @@ Item {
             right: parent.right
             leftMargin: Style.margin
             rightMargin: Style.margin
+            topMargin: Style.margin / 2
             top: parent.top
         }
 
@@ -157,7 +160,7 @@ Item {
 
     Item {
         id: footer
-        height: Style.margin
+        height: Style.margin / 2 + 1
         width: parent.width
         anchors.bottom: parent.bottom
 
@@ -165,7 +168,8 @@ Item {
             color: Style.frameColor
             height: 1
             width: parent.width - Style.strutSize
-            anchors.centerIn: parent
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
         }
     }
 } // of root item

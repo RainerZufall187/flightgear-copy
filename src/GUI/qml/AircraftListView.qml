@@ -65,6 +65,8 @@ Item {
             onShowDetails: root.showDetails(uri)
         }
 
+        spacing: 0
+
         clip: true
         focus: true
 
