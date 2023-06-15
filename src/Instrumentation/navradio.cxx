@@ -127,9 +127,12 @@ FGNavRadio::FGNavRadio(SGPropertyNode *node) :
     _gsNeedleDeflectionNorm(0.0),
     _audioIdent(NULL)
 {
-    readConfig(node, "nav");
-    
-    if (!static_terminalRangeInterp.get()) {
+  // bug: for legacy compatability, all nav-radios should use the nav[0] power output
+  // https://sourceforge.net/p/flightgear/codetickets/2811/
+  setDefaultPowerSupplyPath("/systems/electrical/outputs/nav[0]");
+  readConfig(node, "nav");
+
+  if (!static_terminalRangeInterp.get()) {
     // one-time interpolator init
       SGPath path( globals->get_fg_root() );
       SGPath term = path;
