@@ -68,10 +68,11 @@ APTLoader::APTLoader()
 
 APTLoader::~APTLoader() {}
 
-void APTLoader::readAptDatFile(const SGPath& aptdb_file,
+void APTLoader::readAptDatFile(const NavDataCache::SceneryLocation& sceneryLocation,
                                std::size_t bytesReadSoFar,
                                std::size_t totalSizeOfAllAptDatFiles)
 {
+    const SGPath aptdb_file = sceneryLocation.datPath;
     string apt_dat = aptdb_file.utf8Str(); // full path to the file being parsed
     sg_gzifstream in(aptdb_file, std::ios_base::in | std::ios_base::binary, true);
 
@@ -175,6 +176,7 @@ void APTLoader::readAptDatFile(const SGPath& aptdb_file,
                 // We haven't seen this airport yet in any apt.dat file
                 RawAirportInfo& airportInfo = insertRetval.first->second;
                 airportInfo.file = aptdb_file;
+                airportInfo.sceneryPath = sceneryLocation.sceneryPath;
                 airportInfo.rowCode = rowCode;
                 airportInfo.firstLineNum = line_num;
                 airportInfo.firstLineTokens = std::move(tokens);
@@ -203,7 +205,7 @@ void APTLoader::loadAirports()
     for (AirportInfoMapType::const_iterator it = airportInfoMap.begin();
          it != airportInfoMap.end(); ++it) {
         // Full path to the apt.dat file this airport info comes from
-        const string aptDat = it->second.file.utf8Str();
+        const SGPath aptDat = it->second.file;
 
         // this is just the current airport identifier
         last_apt_id = it->first;
@@ -225,15 +227,15 @@ void APTLoader::loadAirports()
 }
 
 // Parse and return specific apt.dat file containing a single airport.
-const FGAirport* APTLoader::loadAirportFromFile(const std::string& id, const SGPath& aptdb_file)
+const FGAirport* APTLoader::loadAirportFromFile(const std::string& id, const NavDataCache::SceneryLocation& sceneryLocation)
 {
     std::size_t bytesReadSoFar = 10;
     std::size_t totalSizeOfAllAptDatFiles = 100;
 
-    readAptDatFile(aptdb_file.str(), bytesReadSoFar, totalSizeOfAllAptDatFiles);
+    readAptDatFile(sceneryLocation, bytesReadSoFar, totalSizeOfAllAptDatFiles);
 
     RawAirportInfo rawInfo = airportInfoMap[id];
-    return loadAirport(aptdb_file.c_str(), id, &rawInfo, true);
+    return loadAirport(sceneryLocation.datPath, id, &rawInfo, true);
 }
 
 static bool isCommLine(const int code)
@@ -241,13 +243,15 @@ static bool isCommLine(const int code)
     return ((code >= 50) && (code <= 56)) || ((code >= 1050) && (code <= 1056));
 }
 
-const FGAirport* APTLoader::loadAirport(const string& aptDat, const std::string& airportID, RawAirportInfo* airport_info, bool createFGAirport)
+const FGAirport* APTLoader::loadAirport(const SGPath& aptDatFile, const std::string& airportID, RawAirportInfo* airport_info, bool createFGAirport)
 {
     // The first line for this airport was already split over whitespace, but
     // remains to be parsed for the most part.
-    parseAirportLine(airport_info->rowCode, airport_info->firstLineTokens);
+    parseAirportLine(airport_info->rowCode, airport_info->firstLineTokens,
+                     airport_info->sceneryPath);
     const LinesList& lines = airport_info->otherLines;
 
+    const string aptDat = aptDatFile.utf8Str();
     NodeBlock current_block = None;
 
     // Loop over the second and subsequent lines
@@ -422,7 +426,8 @@ void APTLoader::finishAirport(const string& aptDat)
 // 'rowCode' is passed to avoid decoding it twice, since that work was already
 // done in order to detect the start of the new airport.
 void APTLoader::parseAirportLine(unsigned int rowCode,
-                                 const vector<string>& token)
+                                 const vector<string>& token,
+                                 const SGPath& sceneryPath)
 {
     // The algorithm in APTLoader::readAptDatFile() ensures this is at least 5.
     vector<string>::size_type lastIndex = token.size() - 1;
@@ -443,7 +448,7 @@ void APTLoader::parseAirportLine(unsigned int rowCode,
     rwy_count = 0;
 
     currentAirportPosID = cache->insertAirport(fptypeFromRobinType(rowCode),
-                                               id, name);
+                                               id, name, sceneryPath);
 }
 
 void APTLoader::parseRunwayLine810(const string& aptDat, unsigned int lineNum,

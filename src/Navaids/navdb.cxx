@@ -426,10 +426,12 @@ PositionedID NavLoader::processNavLine(
 }
 
 // load and initialize the navigational databases
-void NavLoader::loadNav(const SGPath& path, std::size_t bytesReadSoFar,
+void NavLoader::loadNav(const NavDataCache::SceneryLocation& sceneryLocation,
+                        std::size_t bytesReadSoFar,
                         std::size_t totalSizeOfAllDatFiles)
 {
   NavDataCache* cache = NavDataCache::instance();
+  const SGPath path = sceneryLocation.datPath;
   const string utf8Path = path.utf8Str();
   sg_gzifstream in(path);
 

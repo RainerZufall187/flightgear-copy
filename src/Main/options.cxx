@@ -3110,7 +3110,15 @@ void Options::printJSONReport() const
     // For this method, it doesn't matter if the cache is out-of-date
     const NavDataCache::DatFilesGroupInfo& datFilesInfo =
       cache->getDatFilesInfo(datType);
-    cJSON *datPathsNode = p->createJSONArrayFromPathList(datFilesInfo.paths);
+
+    // Create a list of SGPath instances (for the .dat files) from the list of
+    // NavDataCache::SceneryLocation structs that datFilesInfo.paths is.
+    PathList datFiles(datFilesInfo.paths.size());
+    const auto map = [](const auto& e) { return e.datPath; };
+    std::transform(std::cbegin(datFilesInfo.paths),
+                   std::cend(datFilesInfo.paths), std::begin(datFiles), map);
+
+    cJSON *datPathsNode = p->createJSONArrayFromPathList(datFiles);
     string key = NavDataCache::datTypeStr[datType] + ".dat files";
     cJSON_AddItemToObject(navDataNode, key.c_str(), datPathsNode);
   }

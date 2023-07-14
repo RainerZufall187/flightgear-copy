@@ -18,6 +18,7 @@
 #endif
 
 #include <cstdio>
+#include <utility>
 
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/xml/easyxml.hxx>
@@ -105,11 +106,19 @@ void XMLLoader::load(FGRunwayPreference* p) {
 bool XMLLoader::findAirportData(const std::string& aICAO, 
     const std::string& aFileName, SGPath& aPath)
 {
+  FGAirportRef airport = FGAirport::findByIdent(aICAO);
+  if (!airport) {
+      return false;
+  }
+
   string fileName(aFileName);
   if (!simgear::strutils::ends_with(aFileName, ".xml")) {
     fileName.append(".xml");
   }
-  
+
+  const bool performFullTraversal = airport->sceneryPath().isNull() ||
+    !fileName.compare("procedures.xml");
+
   PathList sc = globals->get_fg_scenery();
   char buffer[128];
   ::snprintf(buffer, 128, "%c/%c/%c/%s.%s", 
@@ -119,13 +128,18 @@ bool XMLLoader::findAirportData(const std::string& aICAO,
     for (PathList::const_iterator it = sc.begin(); it != sc.end(); ++it) {
     // fg_senery contains empty strings as "markers" (see FGGlobals::set_fg_scenery)
     if (!it->isNull()) {
-        SGPath path(*it);
-        path.append("Airports");
-        path.append(string(buffer));
+        const SGPath path = *it / "Airports" / buffer;
         if (path.exists()) {
-          aPath = path;
+          aPath = std::move(path);
           return true;
         } // of path exists
+
+        // Unless we are in “full traversal mode”, don't look in scenery paths
+        // that come after the one which contributed the apt.dat file for the
+        // airport.
+        if (!performFullTraversal && *it == airport->sceneryPath()) {
+            return false;
+        }
     }
   } // of scenery path iteration
   return false;

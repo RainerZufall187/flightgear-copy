@@ -17,6 +17,7 @@
 #include <stdint.h> // for int64_t
 #include <sstream>  // for std::ostringstream
 #include <mutex>
+#include <utility>
 
 #ifdef SYSTEM_SQLITE
 // the standard sqlite3.h doesn't give a way to set SQLITE_UINT64_TYPE,
@@ -563,7 +564,7 @@ public:
                              "(path, stamp, sha) VALUES (?,?, ?)");
 
     loadPositioned = prepare("SELECT " POSITIONED_COLS " FROM positioned WHERE rowid=?");
-    loadAirportStmt = prepare("SELECT has_metar FROM airport WHERE rowid=?");
+    loadAirportStmt = prepare("SELECT scenery_path, has_metar FROM airport WHERE rowid=?");
     loadNavaid = prepare("SELECT range_nm, freq, multiuse, runway, colocated FROM navaid WHERE rowid=?");
     loadCommStation = prepare("SELECT freq_khz, range_nm FROM comm WHERE rowid=?");
     loadRunwayStmt = prepare("SELECT heading, length_ft, width_m, surface, displaced_threshold,"
@@ -588,7 +589,7 @@ public:
 
     setAirportPos = prepare("UPDATE positioned SET lon=?2, lat=?3, elev_m=?4, octree_node=?5, "
                             "cart_x=?6, cart_y=?7, cart_z=?8 WHERE rowid=?1");
-    insertAirport = prepare("INSERT INTO airport (rowid, has_metar) VALUES (?, ?)");
+    insertAirport = prepare("INSERT INTO airport (rowid, scenery_path, has_metar) VALUES (?, ?, ?)");
     insertNavaid = prepare("INSERT INTO navaid (rowid, freq, range_nm, multiuse, runway, colocated)"
                            " VALUES (?1, ?2, ?3, ?4, ?5, ?6)");
 
@@ -704,10 +705,12 @@ public:
   {
     sqlite3_bind_int64(loadAirportStmt, 1, rowId);
     execSelect1(loadAirportStmt);
-    bool hasMetar = (sqlite3_column_int(loadAirportStmt, 0) > 0);
+    SGPath sceneryPath{(char *) sqlite3_column_text(loadAirportStmt, 0)};
+    bool hasMetar = (sqlite3_column_int(loadAirportStmt, 1) > 0);
     reset(loadAirportStmt);
 
-    return new FGAirport(rowId, id, pos, name, hasMetar, ty);
+    return new FGAirport(rowId, id, pos, name, hasMetar, ty,
+                         std::move(sceneryPath));
   }
 
   FGRunwayBase* loadRunway(sqlite3_int64 rowId, FGPositioned::Type ty,
@@ -1156,7 +1159,7 @@ void NavDataCache::NavDataCachePrivate::findDatFiles(
         const std::string name = f.file();
         if (simgear::strutils::ends_with(name, ".dat") ||
             simgear::strutils::ends_with(name, ".dat.gz")) {
-          result.paths.push_back(f);
+          result.paths.push_back({f, path});
           result.totalSize += f.sizeInBytes();
         }
       }
@@ -1167,9 +1170,9 @@ void NavDataCache::NavDataCachePrivate::findDatFiles(
   // now
   SGPath defaultDatFile(globals->get_fg_root());
   defaultDatFile.append(NavDataCache::defaultDatFile[datFileType]);
-  if ((result.paths.empty() || result.paths.back() != defaultDatFile) &&
+  if ((result.paths.empty() || result.paths.back().datPath != defaultDatFile) &&
       defaultDatFile.isFile()) {
-    result.paths.push_back(defaultDatFile);
+    result.paths.push_back({defaultDatFile, globals->get_fg_root()});
     result.totalSize += defaultDatFile.sizeInBytes();
   }
 
@@ -1195,8 +1198,8 @@ bool NavDataCache::NavDataCachePrivate::areDatFilesModified(
                        NavDataCache::datTypeStr[datFileType];
   const string_list cachedFiles = outer->readOrderedStringListProperty(
     datTypeStr + ".dat files", SGPath::pathListSep);
-  const PathList& datFiles = datFilesGroupInfo.paths;
-  PathList::const_iterator datFilesIt = datFiles.begin();
+  const auto& datFiles = datFilesGroupInfo.paths;
+  auto datFilesIt = datFiles.cbegin();
   string_list::const_iterator cachedFilesIt = cachedFiles.begin();
   // Same logic as in NavDataCachePrivate::isCachedFileModified()
   sgDebugPriority logLevel = verbose ? SG_WARN : SG_DEBUG;
@@ -1210,7 +1213,7 @@ bool NavDataCache::NavDataCachePrivate::areDatFilesModified(
   }
 
   while (datFilesIt != datFiles.end()) {
-    const SGPath& path = *(datFilesIt++);
+    const SGPath& path = (datFilesIt++)->datPath;
 
     if (!path.exists()) {
       throw sg_exception(
@@ -1643,25 +1646,24 @@ void NavDataCache::setRebuildPhaseProgress(RebuildPhase ph, unsigned int percent
 
 void NavDataCache::loadDatFiles(
     DatFileType type,
-    std::function<void(const SGPath&, std::size_t, std::size_t)> loader)
+    std::function<void(const SceneryLocation&, std::size_t, std::size_t)> loader)
 {
   SGTimeStamp st;
-  string typeStr = datTypeStr[type];
+  const string typeStr = datTypeStr[type];
   string_list datFiles;
-  NavDataCache::DatFilesGroupInfo datFilesInfo = getDatFilesInfo(type);
-  const PathList datPaths = datFilesInfo.paths;
+  const NavDataCache::DatFilesGroupInfo datFilesInfo = getDatFilesInfo(type);
+  const SceneryLocationList sceneryLocations = datFilesInfo.paths;
   std::size_t bytesReadSoFar = 0;
 
   st.stamp();
-  for (PathList::const_iterator it = datPaths.begin();
-       it != datPaths.end(); it++) {
-    string path = it->realpath().utf8Str();
+  for (const auto& scLoc : sceneryLocations) {
+    const string path = scLoc.datPath.realpath().utf8Str();
     datFiles.push_back(path);
     SG_LOG(SG_GENERAL, SG_INFO,
-           "Loading " + typeStr + ".dat file: '" << path << "'");
-    loader(*it, bytesReadSoFar, datFilesInfo.totalSize);
-    bytesReadSoFar += it->sizeInBytes();
-    stampCacheFile(*it); // this uses the realpath() of the file
+           "Loading " + typeStr + ".dat file: '" << std::move(path) << "'");
+    loader(scLoc, bytesReadSoFar, datFilesInfo.totalSize);
+    bytesReadSoFar += scLoc.datPath.sizeInBytes();
+    stampCacheFile(scLoc.datPath); // this uses the realpath() of the file
   }
 
   // Store the list of .dat files we have loaded
@@ -2032,8 +2034,10 @@ FGPositionedRef NavDataCache::loadById(PositionedID rowid)
 }
 
 PositionedID NavDataCache::insertAirport(FGPositioned::Type ty, const string& ident,
-                                         const string& name)
+                                         const string& name,
+                                         const SGPath& sceneryPath)
 {
+  const string sceneryPath_str = sceneryPath.utf8Str();
   // airports have their pos computed based on the avergae runway centres
   // so the pos isn't available immediately. Pass a dummy pos and avoid
   // doing spatial indexing until later
@@ -2042,6 +2046,7 @@ PositionedID NavDataCache::insertAirport(FGPositioned::Type ty, const string& id
                                             false /* spatial index */);
 
   sqlite3_bind_int64(d->insertAirport, 1, rowId);
+  sqlite_bind_stdstring(d->insertAirport, 2, sceneryPath_str);
   d->execInsert(d->insertAirport);
 
   return rowId;

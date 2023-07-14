@@ -27,10 +27,12 @@
 
 #include <simgear/compiler.h>
 #include <simgear/math/SGGeod.hxx>
-#include <string>
-#include <map>
-#include <tuple>
+#include <Navaids/NavDataCache.hxx>
 #include <Navaids/positioned.hxx>
+
+#include <map>
+#include <string>
+#include <tuple>
 
 // forward decls
 class FGTACANList;
@@ -42,7 +44,8 @@ namespace flightgear
 class NavLoader {
   public:
     // load and initialize the navigational databases
-    void loadNav(const SGPath& path, std::size_t bytesReadSoFar,
+    void loadNav(const NavDataCache::SceneryLocation& sceneryLocation,
+                 std::size_t bytesReadSoFar,
                  std::size_t totalSizeOfAllDatFiles);
 
     void loadCarrierNav(const SGPath& path);

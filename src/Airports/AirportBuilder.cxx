@@ -73,7 +73,8 @@ osgDB::ReaderWriter::ReadResult AirportBuilder::readNode(const std::string& file
   const std::string airportId = aptFile.file_base();
   APTLoader aptLoader;
 
-  const FGAirport* airport = aptLoader.loadAirportFromFile(airportId, aptFile);
+  const FGAirport* airport = aptLoader.loadAirportFromFile(
+      airportId, {aptFile, SGPath()}); // maybe provide a path if this is used
   if (! airport) return ReadResult::FILE_NOT_HANDLED;
 
   SG_LOG( SG_TERRAIN, SG_DEBUG, "Building airport : "  << airportId << " " << airport->getName());

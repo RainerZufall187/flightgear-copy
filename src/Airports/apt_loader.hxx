@@ -9,9 +9,11 @@
 
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <Navaids/positioned.hxx>
+#include <Navaids/NavDataCache.hxx>
 #include <simgear/compiler.h>
 #include <simgear/math/SGGeod.hxx>
 #include <simgear/misc/sg_path.hxx>
@@ -20,7 +22,6 @@
 #include "airport.hxx"
 
 
-class NavDataCache;
 class sg_gzifstream;
 class FGPavement;
 
@@ -36,7 +37,8 @@ public:
     // Read the specified apt.dat file into 'airportInfoMap'.
     // 'bytesReadSoFar' and 'totalSizeOfAllAptDatFiles' are used for progress
     // information.
-    void readAptDatFile(const SGPath& aptdb_file, std::size_t bytesReadSoFar,
+    void readAptDatFile(const NavDataCache::SceneryLocation& sceneryLocation,
+                        std::size_t bytesReadSoFar,
                         std::size_t totalSizeOfAllAptDatFiles);
     // Read all airports gathered in 'airportInfoMap' and load them into the
     // navdata cache (even in case of overlapping apt.dat files,
@@ -45,7 +47,7 @@ public:
 
     // Load a specific airport defined in aptdb_file, and return a "rich" view
     // of the airport including taxiways, pavement and line features.
-    const FGAirport* loadAirportFromFile(const std::string& id, const SGPath& aptdb_file);
+    const FGAirport* loadAirportFromFile(const std::string& id, const NavDataCache::SceneryLocation& sceneryLocation);
 
 private:
     struct Line {
@@ -62,6 +64,8 @@ private:
     struct RawAirportInfo {
         // apt.dat file where the airport was defined
         SGPath file;
+        // Base path of the corresponding scenery
+        SGPath sceneryPath;
         // Row code for the airport (1, 16 or 17)
         unsigned int rowCode;
         // Line number in the apt.dat file where the airport definition starts
@@ -80,7 +84,7 @@ private:
     APTLoader(const APTLoader&);            // disable copy constructor
     APTLoader& operator=(const APTLoader&); // disable copy-assignment operator
 
-    const FGAirport* loadAirport(const std::string& aptDat, const std::string& airportID, RawAirportInfo* airport_info, bool createFGAirport = false);
+    const FGAirport* loadAirport(const SGPath& aptDat, const std::string& airportID, RawAirportInfo* airport_info, bool createFGAirport = false);
 
     // Tell whether an apt.dat line is blank or a comment line
     bool isBlankOrCommentLine(const std::string& line);
@@ -89,7 +93,8 @@ private:
     void throwExceptionIfStreamError(const sg_gzifstream& input_stream,
                                      const SGPath& path);
     void parseAirportLine(unsigned int rowCode,
-                          const std::vector<std::string>& token);
+                          const std::vector<std::string>& token,
+                          const SGPath& sceneryPath);
     void finishAirport(const std::string& aptDat);
     void parseRunwayLine810(const std::string& aptDat, unsigned int lineNum,
                             const std::vector<std::string>& token);

@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <utility>
 
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/debug/logstream.hxx>
@@ -54,10 +55,12 @@ FGAirport::FGAirport( PositionedID aGuid,
                       const SGGeod& location,
                       const std::string &name,
                       bool has_metar,
-                      Type aType ):
+                      Type aType,
+                      SGPath sceneryPath):
     FGPositioned(aGuid, aType, id, location),
     _name(name),
     _has_metar(has_metar),
+    _sceneryPath(std::move(sceneryPath)),
     mTowerDataLoaded(false),
     mHasTower(false),
     mRunwaysLoaded(false),
@@ -88,6 +91,11 @@ bool FGAirport::isSeaport() const
 bool FGAirport::isHeliport() const
 {
   return type() == HELIPORT;
+}
+
+SGPath FGAirport::sceneryPath() const
+{
+  return _sceneryPath;
 }
 
 //------------------------------------------------------------------------------

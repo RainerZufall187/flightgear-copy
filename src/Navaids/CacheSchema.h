@@ -1,6 +1,6 @@
 #pragma once
 
-const int SCHEMA_VERSION = 21;
+const int SCHEMA_VERSION = 22;
 
 #define SCHEMA_SQL                                                                              \
     "CREATE TABLE properties (key VARCHAR, value VARCHAR);"                                     \
@@ -15,7 +15,7 @@ const int SCHEMA_VERSION = 21;
     "CREATE INDEX pos_name ON positioned(name collate nocase);"                                 \
     "CREATE INDEX pos_apt_type ON positioned(airport, type);"                                   \
                                                                                                 \
-    "CREATE TABLE airport (has_metar BOOL);"                                                    \
+    "CREATE TABLE airport (scenery_path VARCHAR, has_metar BOOL);"                                                    \
     "CREATE TABLE comm (freq_khz INT,range_nm INT);"                                            \
     "CREATE INDEX comm_freq ON comm(freq_khz);"                                                 \
                                                                                                 \

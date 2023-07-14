@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <simgear/compiler.h>
+#include <simgear/misc/sg_path.hxx>
 
 #include <Navaids/positioned.hxx>
 #include <Navaids/procedure.hxx>
@@ -30,8 +31,15 @@ class FGGroundNetwork;
 class FGAirport : public FGPositioned
 {
 public:
+    // 'sceneryPath' is the scenery path that provided the apt.dat file for
+    // the airport (except for the “default dat file” under $FG_ROOT and the
+    // null SGPath special case, 'sceneryPath' should be an element of
+    // globals->get_fg_scenery()). Knowing this allows one to stop looking for
+    // files such as ils.xml or threshold.xml in scenery paths that come later
+    // in globals->get_fg_scenery() order (cf. XMLLoader::findAirportData()).
     FGAirport(PositionedID aGuid, const std::string& id, const SGGeod& location,
-              const std::string& name, bool has_metar, Type aType);
+              const std::string& name, bool has_metar, Type aType,
+              SGPath sceneryPath = SGPath());
     ~FGAirport();
 
     static bool isType(FGPositioned::Type ty)
@@ -39,6 +47,9 @@ public:
         return (ty >= FGPositioned::AIRPORT) && (ty <= FGPositioned::SEAPORT);
     }
 
+    // Return the realpath() of the scenery folder under which we found the
+    // apt.dat file for this airport.
+    SGPath sceneryPath() const;
     const std::string& getId() const { return ident(); }
     const std::string& getName() const { return _name; }
     std::string toString() const { return "an airport " + ident(); }
@@ -350,6 +361,7 @@ private:
 
     std::string _name;
     bool _has_metar = false;
+    const SGPath _sceneryPath;
 
     void loadRunways() const;
     void loadHelipads() const;

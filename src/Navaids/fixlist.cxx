@@ -65,9 +65,11 @@ FixesLoader::~FixesLoader()
 { }
 
 // Load fixes from the specified fix.dat (or fix.dat.gz) file
-void FixesLoader::loadFixes(const SGPath& path, std::size_t bytesReadSoFar,
+void FixesLoader::loadFixes(const NavDataCache::SceneryLocation& sceneryLocation,
+                            std::size_t bytesReadSoFar,
                             std::size_t totalSizeOfAllDatFiles)
 {
+  const SGPath path = sceneryLocation.datPath;
   sg_gzifstream in( path );
   const std::string utf8path = path.utf8Str();
 

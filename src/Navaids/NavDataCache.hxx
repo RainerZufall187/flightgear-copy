@@ -10,9 +10,10 @@
 #include <cstddef> // for std::size_t
 #include <functional>
 #include <memory>
+#include <vector>
 
-#include <Main/globals.hxx>          // for PathList
 #include <Navaids/positioned.hxx>
+#include <simgear/misc/sg_path.hxx>
 #include <simgear/misc/strutils.hxx> // for string_list
 
 
@@ -66,9 +67,16 @@ public:
         DATFILETYPE_LAST
     };
 
+    struct SceneryLocation {
+        SGPath datPath;
+        SGPath sceneryPath;     // scenery realpath() the dat file belongs to
+    };
+
+    using SceneryLocationList = std::vector<SceneryLocation>;
+
     struct DatFilesGroupInfo {
         DatFileType datFileType; // for instance, DATFILETYPE_APT
-        PathList paths;          // SGPath instances
+        SceneryLocationList paths;
         std::size_t totalSize;   // total size of all these files, in bytes
     };
 
@@ -144,7 +152,8 @@ public:
     FGPositionedRef loadById(PositionedID guid);
 
     PositionedID insertAirport(FGPositioned::Type ty, const std::string& ident,
-                               const std::string& name);
+                               const std::string& name,
+                               const SGPath& sceneryPath);
     void insertTower(PositionedID airportId, const SGGeod& pos);
 
 
@@ -335,7 +344,7 @@ private:
     // A generic function for loading all navigation data files of the
     // specified type (apt/fix/nav etc.) using the passed type-specific loader.
     void loadDatFiles(DatFileType type,
-                      std::function<void(const SGPath&, std::size_t, std::size_t)> loader);
+                      std::function<void(const SceneryLocation&, std::size_t, std::size_t)> loader);
 
     void doRebuild();
 

@@ -25,6 +25,7 @@
 #define _FG_FIXLIST_HXX
 
 
+#include <Navaids/NavDataCache.hxx>
 #include <simgear/compiler.h>
 #include <simgear/math/SGGeod.hxx>
 #include <unordered_map>
@@ -35,8 +36,6 @@ class sg_gzifstream;
 
 namespace flightgear
 {
-  class NavDataCache;           // forward declaration
-
   class FixesLoader
   {
   public:
@@ -44,7 +43,8 @@ namespace flightgear
     ~FixesLoader();
 
     // Load fixes from the specified fix.dat (or fix.dat.gz) file
-    void loadFixes(const SGPath& path, std::size_t bytesReadSoFar,
+    void loadFixes(const NavDataCache::SceneryLocation& sceneryLocation,
+                   std::size_t bytesReadSoFar,
                    std::size_t totalSizeOfAllDatFiles);
 
   private:
