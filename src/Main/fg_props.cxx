@@ -418,7 +418,8 @@ FGProperties::bind ()
   // Simulation
   _tiedProperties.Tie("/sim/logging/priority", getLoggingPriority, setLoggingPriority);
   _tiedProperties.Tie("/sim/logging/classes", getLoggingClasses, setLoggingClasses);
-  _simFreezeNode = _tiedProperties.Tie("/sim/freeze/master", this, &FGProperties::getFreeze, &FGProperties::setFreeze);
+  _simFreezeNode = fgGetNode("/sim/freeze/master", true);
+  _tiedProperties.Tie(_simFreezeNode, this, &FGProperties::getFreeze, &FGProperties::setFreeze);
   _simFreezeNode->setAttribute(SGPropertyNode::LISTENER_SAFE, true);
 
   _tiedProperties.Tie<double>("/sim/time/elapsed-sec", getElapsedTime_sec);
