@@ -49,7 +49,7 @@ void SimgearPropsTests::testAliasLeak()
 
     // Aliased node.
     alias = tree->getNode("test-alias", true);
-    alias->alias("test-node");
+    alias->alias("test-node", false);
 }
 
 void SimgearPropsTests::testPropsCopyIf()

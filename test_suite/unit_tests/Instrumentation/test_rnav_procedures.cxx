@@ -37,6 +37,7 @@
 #include <Instrumentation/gps.hxx>
 
 #include <Autopilot/route_mgr.hxx>
+#include <Main/globals.hxx>
 
 using namespace flightgear;
 

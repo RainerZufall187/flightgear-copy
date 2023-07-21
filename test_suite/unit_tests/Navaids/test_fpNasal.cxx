@@ -17,6 +17,8 @@
 #include <Airports/airport.hxx>
 #include <Autopilot/route_mgr.hxx>
 
+#include <Main/globals.hxx>
+
 using namespace flightgear;
 
 static bool static_haveProcedures = false;

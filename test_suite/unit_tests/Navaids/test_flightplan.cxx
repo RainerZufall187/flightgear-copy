@@ -44,6 +44,7 @@
 #include <Navaids/fix.hxx>
 
 #include <Airports/airport.hxx>
+#include <Main/globals.hxx>
 
 using namespace std::string_literals;
 using namespace flightgear;

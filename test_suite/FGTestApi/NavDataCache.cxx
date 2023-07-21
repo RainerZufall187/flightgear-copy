@@ -20,6 +20,10 @@
 
 #include "NavDataCache.hxx"
 
+#include <iostream>
+
+#include <simgear/timing/timestamp.hxx>
+
 #include <Navaids/NavDataCache.hxx>
 
 

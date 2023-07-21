@@ -19,6 +19,7 @@
 #include <Navaids/navlist.hxx>
 #include <Navaids/routePath.hxx>
 
+#include <Main/globals.hxx>
 // we need a default GPS instrument, hard to test seperately for now
 #include <Instrumentation/gps.hxx>
 
