@@ -68,7 +68,7 @@ void DMEReceiverTests::testBasic()
     SGPropertyNode_ptr node = globals->get_props()->getNode("instrumentation/dmetest[2]");
     node->setBoolValue("serviceable", true);
 
-    fgSetDouble("systems/electrical/outputs/dme", 12.0);
+    fgSetDouble("systems/electrical/outputs/dme[2]", 12.0);
 
     setPositionAndStabilise(r.get(), arlanda->geod());
 
