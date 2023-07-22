@@ -67,6 +67,7 @@ public:
     
     void setSpring(float spring) { _spring = spring; }
     float getSpring() { return _spring; }
+    void setSpring2(float spring2) { _spring2 = spring2; }
     void setDamping(float damping) { _damp = damping; }
     float getDamping() {return _damp; }
     void setStaticFriction(float sfric) { _sfric = sfric; }
@@ -142,6 +143,7 @@ private:
     double _stuck[3] = {0};
     GearVector _cmpr;
     float _spring = 0;
+    float _spring2 = 0;
     float _damp = 0;
     float _sfric = 0;
     float _dfric = 0;

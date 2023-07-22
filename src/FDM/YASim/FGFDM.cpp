@@ -1090,6 +1090,7 @@ void FGFDM::parseGear(const XMLAttributes* a)
     g->setStaticFriction(attrf(a, "sfric", 0.8));
     g->setDynamicFriction(attrf(a, "dfric", 0.7));
     g->setSpring(attrf(a, "spring", 1));
+    g->setSpring2(attrf(a, "spring2", 0));
     g->setDamping(attrf(a, "damp", 1));
     if(a->hasAttribute("on-water")) g->setOnWater(attrb(a,"on-water"));
     if(a->hasAttribute("on-solid")) g->setOnSolid(attrb(a,"on-solid"));

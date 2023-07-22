@@ -53,6 +53,7 @@ Gear::Gear()
     for(i=0; i<3; i++)
         _pos[i] = _stuck[i] = 0;
     _spring = 1;
+    _spring2 = 0;
     _damp = 0;
     _sfric = 0.8f;
     _dfric = 0.7f;
@@ -501,7 +502,11 @@ void Gear::calcForce(Ground *g_cb, RigidBody* body, State *s, float* v, float* r
         frac_with_initial_load = (_frac+_initialLoad)
             *_frac*_frac*3*25-_frac*_frac*_frac*2*125;
 
-    float fmag = frac_with_initial_load*clen*_spring;
+    float fmag = clen * _spring *
+            (
+            frac_with_initial_load
+            + _spring2 * pow( frac_with_initial_load, 2)
+            );
     if (_speed_planing>0)
     {
         float v = Math::mag3(cv);
