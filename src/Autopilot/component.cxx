@@ -52,12 +52,12 @@ bool Component::configure( SGPropertyNode& prop_root,
     if(    !configure(*child, cname, prop_root)
         && cname != "params" ) // 'params' is usually used to specify parameters
                                // in PropertList files.
-      SG_LOG
-      (
-        SG_AUTOPILOT,
-        SG_INFO,
-        "Component::configure: unknown node: " << cname
-      );
+
+        // consider using the error reporting mechanism here, at level warning
+        SG_LOG(
+            SG_AUTOPILOT,
+            SG_DEV_WARN,
+            "Component::configure: unknown node: " << cname);
   }
 
   return true;

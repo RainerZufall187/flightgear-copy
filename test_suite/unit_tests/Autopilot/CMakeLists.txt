@@ -5,6 +5,7 @@ set(TESTSUITE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/testPidController.cxx
     ${CMAKE_CURRENT_SOURCE_DIR}/testPidControllerData.cxx
     ${CMAKE_CURRENT_SOURCE_DIR}/testInputValue.cxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/testMonostable.cxx
     PARENT_SCOPE
 )
 
@@ -14,5 +15,6 @@ set(TESTSUITE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/testPidController.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/testPidControllerData.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/testInputValue.hxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/testMonostable.hxx
     PARENT_SCOPE
 )

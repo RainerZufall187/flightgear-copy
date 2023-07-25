@@ -18,10 +18,12 @@
  */
 
 #include "testDigitalFilter.hxx"
-#include "testPidController.hxx"
 #include "testInputValue.hxx"
+#include "testMonostable.hxx"
+#include "testPidController.hxx"
 
 // Set up the unit tests.
+CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(MonostableTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(DigitalFilterTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(PidControllerTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(InputValueTests, "Unit tests");

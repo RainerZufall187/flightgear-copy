@@ -269,6 +269,12 @@ protected:
                           SGPropertyNode& prop_root );
   InputValueList _time;
   double _t;
+
+  bool isConfigProperty(const std::string& cfg_name) const override
+  {
+    return cfg_name == "time";
+  }
+
 public:
   /**
    * @brief constructor for a MonoFlopImplementation
@@ -454,6 +460,12 @@ bool FlipFlop::configure( SGPropertyNode& cfg_node,
 
   if (cfg_name == "clock") {
     _input["clock"] = sgReadCondition(&prop_root, &cfg_node);
+    return true;
+  }
+
+  if (_implementation && _implementation->isConfigProperty(cfg_name)) {
+    // componentForge CreateAndConfigureFunctor<> already called configure with all the nodes
+    // on our implementation, but we need to ensure we don't return false here for such nodes
     return true;
   }
 

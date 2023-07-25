@@ -58,6 +58,8 @@ public:
   */
   bool configure( SGPropertyNode& prop_root,
                   SGPropertyNode& cfg );
+
+  virtual bool isConfigProperty(const std::string& cfg_name) const { return false; }
 };
 
 /**
