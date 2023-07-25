@@ -115,25 +115,26 @@ _setup_tables ()
 
 void FGEnvironment::_init()
 {
-    live_update = false;
-    elevation_ft = 0;
-    visibility_m = 32000;
-    temperature_sea_level_degc = 15;
-    temperature_degc = 15;
-    dewpoint_sea_level_degc = 5; // guess
-    dewpoint_degc = 5;
-    pressure_sea_level_inhg = 29.92;
-    pressure_inhg = 29.92;
-    density_slugft3 = 0;
-    turbulence_magnitude_norm = 0;
-    turbulence_rate_hz = 1;
-    wind_from_heading_deg = 0;
-    wind_speed_kt = 0;
-    wind_from_north_fps = 0;
-    wind_from_east_fps = 0;
-    wind_from_down_fps = 0;
-    altitude_half_to_sun_m = 1000;
-    altitude_tropo_top_m = 10000;
+  is_isa = false;
+  live_update = false;
+  elevation_ft = 0;
+  visibility_m = 32000;
+  temperature_sea_level_degc = 15;
+  temperature_degc = 15;
+  dewpoint_sea_level_degc = 5; // guess
+  dewpoint_degc = 5;
+  pressure_sea_level_inhg = 29.92;
+  pressure_inhg = 29.92;
+  density_slugft3 = 0;
+  turbulence_magnitude_norm = 0;
+  turbulence_rate_hz = 1;
+  wind_from_heading_deg = 0;
+  wind_speed_kt = 0;
+  wind_from_north_fps = 0;
+  wind_from_east_fps = 0;
+  wind_from_down_fps = 0;
+  altitude_half_to_sun_m = 1000;
+  altitude_tropo_top_m = 10000;
 #ifdef USING_TABLES
     _setup_tables();
 #endif
@@ -188,6 +189,7 @@ FGEnvironment::copy (const FGEnvironment &env)
     altitude_half_to_sun_m = env.altitude_half_to_sun_m;
     altitude_tropo_top_m = env.altitude_tropo_top_m;
     live_update = env.live_update;
+    is_isa = env.is_isa;
 }
 
 static inline bool
@@ -251,6 +253,11 @@ FGEnvironment::read (const SGPropertyNode * node)
 
     maybe_copy_value(this, node, "turbulence/rate-hz",
                      &FGEnvironment::set_turbulence_rate_hz);
+
+    const SGPropertyNode* child = node->getNode("atmosphere/is-isa");
+    if (child != 0 && child->hasValue()) {
+        set_is_isa(child->getBoolValue());
+    }
 
     // calculate derived properties here to avoid duplicate expensive computations
     _recalc_ne();
@@ -480,6 +487,11 @@ FGEnvironment::get_elevation_ft () const
   return elevation_ft;
 }
 
+bool FGEnvironment::get_is_isa() const
+{
+  return is_isa;
+}
+
 void
 FGEnvironment::set_visibility_m (double v)
 {
@@ -641,6 +653,10 @@ FGEnvironment::set_altitude_tropo_top_m (double alt)
   }
 }
 
+void FGEnvironment::set_is_isa(bool isa)
+{
+  is_isa = isa;
+}
 
 void
 FGEnvironment::_recalc_hdgspd ()
@@ -687,15 +703,23 @@ FGEnvironment::_recalc_sl_temperature ()
     return;
   }
 
-// Clamp: temperature of the stratosphere, in degrees C:
-  double t_strato = ISA_def[1].temp - atmodel::freezing;
-  if (temperature_degc < t_strato) temperature_sea_level_degc = t_strato;
-  else temperature_sea_level_degc = 
-      temperature_degc + elevation_ft * atmodel::foot * ISA_def[0].lapse;
+  double temperature_shift = elevation_ft * atmodel::foot * ISA_def[0].lapse;
 
-// Alternative implemenation:
-//  else temperature_sea_level_inhg = T_layer(0., elevation_ft * foot,
-//      pressure_inhg * inHg, temperature_degc + freezing, ISA_def[0].lapse) - freezing;
+  if (is_isa) {
+    // The "International Standard Atmosphere" METAR scenario in use
+    temperature_sea_level_degc = 15.0;
+    temperature_degc = temperature_sea_level_degc - temperature_shift;
+  } else {
+    // Clamp: temperature of the stratosphere, in degrees C:
+    double t_strato = ISA_def[1].temp - atmodel::freezing;
+    temperature_sea_level_degc = temperature_degc < t_strato
+                                     ? t_strato
+                                     : temperature_degc + temperature_shift;
+
+    // Alternative implemenation:
+    //  temperature_sea_level_inhg = T_layer(0., elevation_ft * foot,
+    //      pressure_inhg * inHg, temperature_degc + freezing, ISA_def[0].lapse) - freezing;
+  }
 }
 
 void

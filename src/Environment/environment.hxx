@@ -100,6 +100,8 @@ public:
 
   virtual bool set_live_update(bool live_update);
 
+  virtual void set_is_isa(bool isa);
+  virtual bool get_is_isa() const;
 
   FGEnvironment & interpolate (const FGEnvironment & env2, double fraction, FGEnvironment * result) const;
 private:
@@ -146,6 +148,7 @@ private:
   double wind_from_down_fps;
 
   bool     live_update;
+  bool is_isa;
   simgear::TiedPropertyList _tiedProperties;
 
 };
