@@ -641,6 +641,7 @@ readPanel (const SGPropertyNode * root, const SGPath& path)
 {
   SG_LOG( SG_COCKPIT, SG_INFO, "Reading properties for panel " <<
           root->getStringValue("name", "[Unnamed Panel]") );
+  simgear::ErrorReportContext ec("2d-panel", path.utf8Str());
 
   FGPanel * panel = new FGPanel();
   panel->setWidth(root->getIntValue("w", 1024));
@@ -775,7 +776,8 @@ readPanel (const SGPropertyNode * root, const SGPath& path)
 		  FGSpecialInstrument* gpsinst = new FGSpecialInstrument(gps);
           panel->addInstrument(gpsinst);
         } else {
-          SG_LOG( SG_COCKPIT, SG_WARN, "Unknown special instrument found" );
+          simgear::reportFailure(simgear::LoadFailure::Misconfigured, simgear::ErrorCode::AircraftSystems,
+             "Unknown special instrument found:" + name, path);
         }
       } else {
         SG_LOG( SG_COCKPIT, SG_WARN, "Skipping " << node->getNameString()
@@ -828,6 +830,8 @@ fgReadPanel (istream &input)
 FGPanel *
 fgReadPanel (const string &relative_path)
 {
+  simgear::ErrorReportContext ec("2d-panel", relative_path);
+
   SGPath path = globals->resolve_aircraft_path(relative_path);
   SGPropertyNode root;
 
