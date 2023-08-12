@@ -27,9 +27,7 @@
 // <layer> tag by adding <emissive>true</emissive> tag. When omitted the default
 // value is for backward compatibility set to false.
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
+#include <config.h>
 
 #include "panel.hxx"
 
@@ -49,11 +47,12 @@
 
 #include "fnt.h"
 
+#include <osg/GLU>
+#include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/debug/logstream.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/misc/strutils.hxx>
 #include <simgear/scene/model/model.hxx>
-#include <osg/GLU>
 
 #include <Main/globals.hxx>
 #include <Main/fg_props.hxx>
@@ -104,14 +103,23 @@ osg::Texture2D*
 FGTextureManager::createTexture (const std::string &relativePath, bool staticTexture)
 {
   osg::Texture2D* texture = _textureMap[relativePath].get();
-  if (texture == 0) {
-    SGPath tpath = globals->resolve_aircraft_path(relativePath);
-    texture = SGLoadTexture2D(staticTexture, tpath);
+  if (!texture) {
+      SGPath tpath = globals->resolve_aircraft_path(relativePath);
+      if (!tpath.exists()) {
+          simgear::reportFailure(simgear::LoadFailure::NotFound, simgear::ErrorCode::LoadingTexture,
+                                 std::string{"Panel texture:"} + relativePath, sg_location{tpath});
+          // fall through : SGLoadTexture2D will create an empty texture
+      }
 
-    _textureMap[relativePath] = texture;
-    if (!_textureMap[relativePath].valid())
-      SG_LOG( SG_COCKPIT, SG_ALERT, "Texture *still* doesn't exist" );
-    SG_LOG( SG_COCKPIT, SG_DEBUG, "Created texture " << relativePath );
+      texture = SGLoadTexture2D(staticTexture, tpath);
+      if (!texture) {
+          // path was valie but failed to load for some reason
+          simgear::reportFailure(simgear::LoadFailure::BadData, simgear::ErrorCode::LoadingTexture,
+                                 std::string{"Panel texture:"} + relativePath, sg_location{tpath});
+          return nullptr;
+      }
+
+      _textureMap[relativePath] = texture;
   }
 
   return texture;
