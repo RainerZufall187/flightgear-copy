@@ -1,8 +1,11 @@
-// fg_commands.cxx - internal FGFS commands.
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+/*
+ * SPDX-FileName: fg_commands.hxx
+ * SPDX-FileComment: built-in commands for FlightGear.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#include <config.h>
 
 #include <string.h>		// strcmp()
 
@@ -15,6 +18,7 @@
 #include <simgear/debug/logstream.hxx>
 #include <simgear/io/iostreams/sgstream.hxx>
 #include <simgear/math/sg_random.hxx>
+#include <simgear/misc/simgear_optional.hxx>
 #include <simgear/props/props.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/sg_inlines.h>
@@ -118,41 +122,81 @@ split_value (double full_value, const char * mask,
     }
 }
 
+/**
+ * @brief Retrive a typed value from a node, either from <foo> directly or indirectly
+ * 
+ * @param node - base node from the command to look inside
+ * @param name - direct name of the argument, eg 'min' or 'max'
+ * @param indirectName - indirect name to use, eg, 'min-path'. If empty, the name is formed using the base
+ *  name and appending '-prop', eg 'min-prop' and 'max-prop'.
+ * @return std::optional<T> 
+ */
+template <class T>
+static simgear::optional<T>
+getValueIndirect(const SGPropertyNode* node, const std::string& name, const std::string& indirectName = {})
+{
+    auto indirectNode = node->getChild(indirectName.empty() ? (name + "-prop") : indirectName);
+    if (indirectNode) {
+        const auto resolvedNode = fgGetNode(indirectNode->getStringValue());
+        if (resolvedNode) {
+            return resolvedNode->getValue<T>();
+        }
+
+        // if the path is not valid, warn
+        SG_LOG(SG_GENERAL, SG_DEV_WARN, "getValueIndirect: property:" << indirectNode->getNameString() << " has value '" << indirectNode->getStringValue() << "' which was not found in the global property tree. Falling back to "
+                                                                                                                                                              "value defined by argument '"
+                                                                      << name << "'");
+
+        // deliberate fall through here, so we use the value from the direct prop
+    }
+
+    auto directNode = node->getChild(name);
+    if (directNode)
+        return directNode->getValue<T>();
+
+    return {};
+}
 
 /**
  * Clamp or wrap a value as specified.
  */
-static void
-limit_value (double * value, const SGPropertyNode * arg)
+static double
+limit_value(double value, const SGPropertyNode* arg)
 {
-    const SGPropertyNode * min_node = arg->getChild("min");
-    const SGPropertyNode * max_node = arg->getChild("max");
+    const auto minv = getValueIndirect<double>(arg, "min");
+    const auto maxv = getValueIndirect<double>(arg, "max");
 
-    bool wrap = arg->getBoolValue("wrap");
-
-    if (min_node == 0 || max_node == 0)
-        wrap = false;
+    // we can wrap only if requested, and
+    const bool canWrap = (minv && maxv);
+    const bool wantsWrap = arg->getBoolValue("wrap");
+    const bool wrap = canWrap && wantsWrap;
+    if (wantsWrap && !canWrap) {
+        SG_LOG(SG_GENERAL, SG_DEV_WARN, "limit_value: wrap requested, but no min/max values defined");
+    }
 
     if (wrap) {                 // wrap such that min <= x < max
-        double min_val = min_node->getDoubleValue();
-        double max_val = max_node->getDoubleValue();
-        double resolution = arg->getDoubleValue("resolution");
+        const double resolution = arg->getDoubleValue("resolution");
         if (resolution > 0.0) {
             // snap to (min + N*resolution), taking special care to handle imprecision
-            int n = (int)floor((*value - min_val) / resolution + 0.5);
-            int steps = (int)floor((max_val - min_val) / resolution + 0.5);
+            int n = (int)floor((value - minv.value()) / resolution + 0.5);
+            int steps = (int)floor((maxv.value() - minv.value()) / resolution + 0.5);
             SG_NORMALIZE_RANGE(n, 0, steps);
-            *value = min_val + resolution * n;
+            return minv.value() + resolution * n;
         } else {
             // plain circular wrapping
-            SG_NORMALIZE_RANGE(*value, min_val, max_val);
+            return SGMiscd::normalizePeriodic(minv.value(), maxv.value(), value);
         }
     } else {                    // clamp such that min <= x <= max
-        if ((min_node != 0) && (*value < min_node->getDoubleValue()))
-            *value = min_node->getDoubleValue();
-        else if ((max_node != 0) && (*value > max_node->getDoubleValue()))
-            *value = max_node->getDoubleValue();
+        if (minv && (value < minv.value())) {
+            return minv.value();
+        }
+
+        if (maxv && (value > maxv.value())) {
+            return maxv.value();
+        }
     }
+
+    return value; // return unmodified value
 }
 
 static bool
@@ -545,7 +589,7 @@ do_property_adjust (const SGPropertyNode * arg, SGPropertyNode * root)
   split_value(prop->getDoubleValue(), arg->getStringValue("mask", "all").c_str(),
               &unmodifiable, &modifiable);
   modifiable += amount;
-  limit_value(&modifiable, arg);
+  modifiable = limit_value(modifiable, arg);
 
   prop->setDoubleValue(unmodifiable + modifiable);
 
@@ -571,13 +615,17 @@ static bool
 do_property_multiply (const SGPropertyNode * arg, SGPropertyNode * root)
 {
   SGPropertyNode * prop = get_prop(arg,root);
-  double factor = arg->getDoubleValue("factor", 1.0);
+  auto factorValue = getValueIndirect<double>(arg, "factor");
+  if (!factorValue) {
+      SG_LOG(SG_GENERAL, SG_DEV_WARN, "property-multiply: missing factor/factor-prop argument");
+      return false;
+  }
 
   double unmodifiable, modifiable;
   split_value(prop->getDoubleValue(), arg->getStringValue("mask", "all").c_str(),
               &unmodifiable, &modifiable);
-  modifiable *= factor;
-  limit_value(&modifiable, arg);
+  modifiable *= factorValue.value();
+  modifiable = limit_value(modifiable, arg);
 
   prop->setDoubleValue(unmodifiable + modifiable);
 

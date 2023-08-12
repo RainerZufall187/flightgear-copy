@@ -4,6 +4,7 @@ set(TESTSUITE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_autosaveMigration.cxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_posinit.cxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_timeManager.cxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.cxx
     PARENT_SCOPE
 )
 
@@ -12,5 +13,6 @@ set(TESTSUITE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/test_autosaveMigration.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_posinit.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_timeManager.hxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.hxx
     PARENT_SCOPE
 )

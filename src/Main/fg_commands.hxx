@@ -1,7 +1,11 @@
-// fg_commands.hxx - built-in commands for FlightGear.
 
-#ifndef __FG_COMMANDS_HXX
-#define __FG_COMMANDS_HXX
+/*
+ * SPDX-FileName: fg_commands.hxx
+ * SPDX-FileComment: built-in commands for FlightGear.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#pragma once
 
 /**
  * Initialize the built-in commands.
@@ -10,6 +14,3 @@ void fgInitCommands ();
 
 void fgInitSceneCommands();
 
-// end of fg_commands.hxx
-
-#endif

@@ -18,11 +18,12 @@
  */
 
 #include "test_autosaveMigration.hxx"
+#include "test_commands.hxx"
 #include "test_posinit.hxx"
 #include "test_timeManager.hxx"
-
 
 // Set up the unit tests.
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(AutosaveMigrationTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(PosInitTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(TimeManagerTests, "Unit tests");
+CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(CommandsTests, "Unit tests");
