@@ -63,10 +63,10 @@ class DigitalFilterImplementation:
 /* --------------------------------------------------------------------------------- */
 class GainFilterImplementation : public DigitalFilterImplementation {
 protected:
-  InputValueList _gainInput;
-  bool configure( SGPropertyNode& cfg_node,
-                  const std::string& cfg_name,
-                  SGPropertyNode& prop_root );
+    simgear::ValueList _gainInput;
+    bool configure(SGPropertyNode& cfg_node,
+                   const std::string& cfg_name,
+                   SGPropertyNode& prop_root);
 public:
   GainFilterImplementation() : _gainInput(1.0) {}
   double compute(  double dt, double input );
@@ -82,7 +82,7 @@ public:
 };
 
 class DerivativeFilterImplementation : public GainFilterImplementation {
-  InputValueList _TfInput;
+  simgear::ValueList _TfInput;
   double _input_1;
   bool configure( SGPropertyNode& cfg_node,
                   const std::string& cfg_name,
@@ -100,12 +100,12 @@ public:
 
 class ExponentialFilterImplementation : public GainFilterImplementation {
 protected:
-  InputValueList _TfInput;
-  bool configure( SGPropertyNode& cfg_node,
-                  const std::string& cfg_name,
-                  SGPropertyNode& prop_root );
-  bool _isSecondOrder;
-  double _output_1, _output_2;
+    simgear::ValueList _TfInput;
+    bool configure(SGPropertyNode& cfg_node,
+                   const std::string& cfg_name,
+                   SGPropertyNode& prop_root);
+    bool _isSecondOrder;
+    double _output_1, _output_2;
 public:
   ExponentialFilterImplementation();
   double compute(  double dt, double input );
@@ -119,12 +119,12 @@ public:
 
 class MovingAverageFilterImplementation : public DigitalFilterImplementation {
 protected:
-  InputValueList _samplesInput;
-  double _output_1;
-  std::deque <double> _inputQueue;
-  bool configure( SGPropertyNode& cfg_node,
-                  const std::string& cfg_name,
-                  SGPropertyNode& prop_root );
+    simgear::ValueList _samplesInput;
+    double _output_1;
+    std::deque<double> _inputQueue;
+    bool configure(SGPropertyNode& cfg_node,
+                   const std::string& cfg_name,
+                   SGPropertyNode& prop_root);
 public:
   MovingAverageFilterImplementation();
   double compute(  double dt, double input );
@@ -138,7 +138,7 @@ public:
 class NoiseSpikeFilterImplementation : public DigitalFilterImplementation {
 protected:
   double _output_1;
-  InputValueList _rateOfChangeInput;
+  simgear::ValueList _rateOfChangeInput;
   bool configure( SGPropertyNode& cfg_node,
                   const std::string& cfg_name,
                   SGPropertyNode& prop_root );
@@ -155,8 +155,8 @@ public:
 class RateLimitFilterImplementation : public DigitalFilterImplementation {
 protected:
   double _output_1;
-  InputValueList _rateOfChangeMax;
-  InputValueList _rateOfChangeMin ;
+  simgear::ValueList _rateOfChangeMax;
+  simgear::ValueList _rateOfChangeMin;
   bool configure( SGPropertyNode& cfg_node,
                   const std::string& cfg_name,
                   SGPropertyNode& prop_root );
@@ -173,14 +173,14 @@ public:
 
 class IntegratorFilterImplementation : public GainFilterImplementation {
 protected:
-  InputValueList _TfInput;
-  InputValueList _minInput;
-  InputValueList _maxInput;
-  double _input_1;
-  double _output_1;
-  bool configure( SGPropertyNode& cfg_node,
-                  const std::string& cfg_name,
-                  SGPropertyNode& prop_root );
+    simgear::ValueList _TfInput;
+    simgear::ValueList _minInput;
+    simgear::ValueList _maxInput;
+    double _input_1;
+    double _output_1;
+    bool configure(SGPropertyNode& cfg_node,
+                   const std::string& cfg_name,
+                   SGPropertyNode& prop_root);
 public:
   IntegratorFilterImplementation();
   double compute(  double dt, double input );
@@ -197,15 +197,15 @@ public:
 // integrates x" + ax' + bx + c = 0
 class DampedOscillationFilterImplementation : public GainFilterImplementation {
 protected:
-  InputValueList _aInput;
-  InputValueList _bInput;
-  InputValueList _cInput;
-  double _x2;
-  double _x1;
-  double _x0;
-  bool configure( SGPropertyNode& cfg_node,
-                  const std::string& cfg_name,
-                  SGPropertyNode& prop_root );
+    simgear::ValueList _aInput;
+    simgear::ValueList _bInput;
+    simgear::ValueList _cInput;
+    double _x2;
+    double _x1;
+    double _x0;
+    bool configure(SGPropertyNode& cfg_node,
+                   const std::string& cfg_name,
+                   SGPropertyNode& prop_root);
 public:
   DampedOscillationFilterImplementation();
   double compute(  double dt, double input );
@@ -221,12 +221,12 @@ public:
 
 class HighPassFilterImplementation : public GainFilterImplementation {
 protected:
-  InputValueList _TfInput;
-  double _input_1;
-  double _output_1;
-  bool configure( SGPropertyNode& cfg_node,
-                  const std::string& cfg_name,
-                  SGPropertyNode& prop_root );
+    simgear::ValueList _TfInput;
+    double _input_1;
+    double _output_1;
+    bool configure(SGPropertyNode& cfg_node,
+                   const std::string& cfg_name,
+                   SGPropertyNode& prop_root);
 public:
   HighPassFilterImplementation();
   double compute(  double dt, double input );
@@ -239,13 +239,13 @@ public:
 };
 class LeadLagFilterImplementation : public GainFilterImplementation {
 protected:
-  InputValueList _TfaInput;
-  InputValueList _TfbInput;
-  double _input_1;
-  double _output_1;
-  bool configure( SGPropertyNode& cfg_node,
-                  const std::string& cfg_name,
-                  SGPropertyNode& prop_root );
+    simgear::ValueList _TfaInput;
+    simgear::ValueList _TfbInput;
+    double _input_1;
+    double _output_1;
+    bool configure(SGPropertyNode& cfg_node,
+                   const std::string& cfg_name,
+                   SGPropertyNode& prop_root);
 public:
   LeadLagFilterImplementation();
   double compute(  double dt, double input );
@@ -261,7 +261,7 @@ public:
 class CoherentNoiseFilterImplementation : public DigitalFilterImplementation
 {
 protected:
-    InputValueList _amplitude;
+    simgear::ValueList _amplitude;
 
     std::vector<double> _discreteValues;
     bool _absoluteVal = false;
@@ -306,7 +306,7 @@ bool GainFilterImplementation::configure( SGPropertyNode& cfg_node,
                                           SGPropertyNode& prop_root )
 {
   if (cfg_name == "gain" ) {
-    _gainInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _gainInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
 
@@ -347,7 +347,7 @@ bool DerivativeFilterImplementation::configure( SGPropertyNode& cfg_node,
     return true;
 
   if (cfg_name == "filter-time" ) {
-    _TfInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _TfInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
 
@@ -405,7 +405,7 @@ bool MovingAverageFilterImplementation::configure( SGPropertyNode& cfg_node,
                                                    SGPropertyNode& prop_root )
 {
   if (cfg_name == "samples" ) {
-    _samplesInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _samplesInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
 
@@ -431,7 +431,7 @@ double NoiseSpikeFilterImplementation::compute(  double dt, double input )
   if( fabs(delta) <= SGLimitsd::min() ) return input; // trivial
 
   double maxChange = _rateOfChangeInput.get_value() * dt;
-  const PeriodicalValue * periodical = _digitalFilter->getPeriodicalValue();
+  const auto periodical = _digitalFilter->getPeriodicalValue();
   if( periodical ) delta = periodical->normalizeSymmetric( delta );
 
   if( fabs(delta) <= maxChange )
@@ -446,7 +446,7 @@ bool NoiseSpikeFilterImplementation::configure( SGPropertyNode& cfg_node,
                                                 SGPropertyNode& prop_root )
 {
   if (cfg_name == "max-rate-of-change" ) {
-    _rateOfChangeInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _rateOfChangeInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
 
@@ -491,11 +491,11 @@ bool RateLimitFilterImplementation::configure( SGPropertyNode& cfg_node,
 {
 //  std::cout << "RateLimitFilterImplementation " << cfg_name << std::endl;
   if (cfg_name == "max-rate-of-change" ) {
-    _rateOfChangeMax.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _rateOfChangeMax.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   if (cfg_name == "min-rate-of-change" ) {
-    _rateOfChangeMin.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _rateOfChangeMin.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
 
@@ -549,7 +549,7 @@ bool ExponentialFilterImplementation::configure( SGPropertyNode& cfg_node,
     return true;
 
   if (cfg_name == "filter-time" ) {
-    _TfInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _TfInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
 
@@ -583,11 +583,11 @@ bool IntegratorFilterImplementation::configure( SGPropertyNode& cfg_node,
     return true;
 
   if (cfg_name == "u_min" ) {
-    _minInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _minInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   if (cfg_name == "u_max" ) {
-    _maxInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _maxInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   return false;
@@ -625,15 +625,15 @@ bool DampedOscillationFilterImplementation::configure( SGPropertyNode& cfg_node,
     return true;
 
   if (cfg_name == "a" ) {
-    _aInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _aInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   if (cfg_name == "b" ) {
-    _bInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _bInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   if (cfg_name == "c" ) {
-    _cInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _cInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   return false;
@@ -724,7 +724,7 @@ bool HighPassFilterImplementation::configure( SGPropertyNode& cfg_node,
     return true;
 
   if (cfg_name == "filter-time" ) {
-    _TfInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _TfInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
 
@@ -774,11 +774,11 @@ bool LeadLagFilterImplementation::configure( SGPropertyNode& cfg_node,
     return true;
 
   if (cfg_name == "filter-time-a" ) {
-    _TfaInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _TfaInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   if (cfg_name == "filter-time-b" ) {
-    _TfbInput.push_back( new InputValue(prop_root, cfg_node, 1) );
+    _TfbInput.push_back(new simgear::Value(prop_root, cfg_node, 1));
     return true;
   }
   return false;
@@ -833,7 +833,7 @@ bool CoherentNoiseFilterImplementation::configure(SGPropertyNode& cfg_node,
     }
 
     if (cfg_name == "amplitude") {
-        _amplitude.push_back(new InputValue(prop_root, cfg_node, 1.0));
+        _amplitude.push_back(new simgear::Value(prop_root, cfg_node, 1.0));
         return true;
     }
 

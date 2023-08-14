@@ -8,7 +8,6 @@ set(SOURCES
 	digitalcomponent.cxx
 	digitalfilter.cxx
 	flipflop.cxx
-	inputvalue.cxx
 	logic.cxx
 	pidcontroller.cxx
 	pisimplecontroller.cxx
@@ -24,7 +23,6 @@ set(HEADERS
 	digitalcomponent.hxx
 	digitalfilter.hxx
 	flipflop.hxx
-	inputvalue.hxx
 	logic.hxx
 	pidcontroller.hxx
 	pisimplecontroller.hxx

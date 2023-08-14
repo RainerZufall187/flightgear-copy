@@ -90,31 +90,31 @@ bool AnalogComponent::configure( SGPropertyNode& cfg_node,
 
   if( cfg_name == "input" )
   {
-    _valueInput.push_back( new InputValue(prop_root, cfg_node) );
+    _valueInput.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   }
 
   if( cfg_name == "reference" )
   {
-    _referenceInput.push_back( new InputValue(prop_root, cfg_node) );
+    _referenceInput.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   }
 
   if( cfg_name == "min" || cfg_name == "u_min" )
   {
-    _minInput.push_back( new InputValue(prop_root, cfg_node) );
+    _minInput.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   }
 
   if( cfg_name == "max" || cfg_name == "u_max" )
   {
-    _maxInput.push_back( new InputValue(prop_root, cfg_node) );
+    _maxInput.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   }
 
   if( cfg_name == "period" )
   {
-    _periodical = new PeriodicalValue(prop_root, cfg_node);
+    _periodical = new simgear::PeriodicalValue(prop_root, cfg_node);
     return true;
   }
 

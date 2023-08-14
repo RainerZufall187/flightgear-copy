@@ -49,8 +49,8 @@ class Predictor : public AnalogComponent
 private:
     double _last_value;
     double _average;
-    InputValueList _seconds;
-    InputValueList _filter_gain;
+    simgear::ValueList _seconds;
+    simgear::ValueList _filter_gain;
 
 protected:
     virtual bool configure( SGPropertyNode& cfg_node,

@@ -12,7 +12,7 @@
 #include <simgear/props/props.hxx>
 #include <simgear/structure/subsystem_mgr.hxx>
 
-#include <Autopilot/inputvalue.hxx>
+#include <simgear/misc/inputvalue.hxx>
 
 class FGAIBase;
 class FGAIManager;
@@ -37,18 +37,18 @@ public:
         double timer;
         int count;
         bool offsets_in_meter;
-        FGXMLAutopilot::InputValue_ptr x_offset;
-        FGXMLAutopilot::InputValue_ptr y_offset;
-        FGXMLAutopilot::InputValue_ptr z_offset;
-        FGXMLAutopilot::InputValue_ptr yaw_offset;
-        FGXMLAutopilot::InputValue_ptr pitch_offset;
+        simgear::Value_ptr x_offset;
+        simgear::Value_ptr y_offset;
+        simgear::Value_ptr z_offset;
+        simgear::Value_ptr yaw_offset;
+        simgear::Value_ptr pitch_offset;
         double drag_area;
         double life;
         double buoyancy;
-        FGXMLAutopilot::InputValue_ptr azimuth_error;
-        FGXMLAutopilot::InputValue_ptr elevation_error;
-        FGXMLAutopilot::InputValue_ptr cd_randomness;
-        FGXMLAutopilot::InputValue_ptr life_randomness;
+        simgear::Value_ptr azimuth_error;
+        simgear::Value_ptr elevation_error;
+        simgear::Value_ptr cd_randomness;
+        simgear::Value_ptr life_randomness;
         bool wind;
         bool first_time;
         double cd;

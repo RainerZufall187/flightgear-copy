@@ -21,7 +21,7 @@
 
 #include "flipflop.hxx"
 #include "functor.hxx"
-#include "inputvalue.hxx"
+#include <simgear/misc/inputvalue.hxx>
 #include <Main/fg_props.hxx>
 
 using std::map;
@@ -267,7 +267,7 @@ protected:
   virtual bool configure( SGPropertyNode& cfg_node,
                           const std::string& cfg_name,
                           SGPropertyNode& prop_root );
-  InputValueList _time;
+  simgear::ValueList _time;
   double _t;
 
   bool isConfigProperty(const std::string& cfg_name) const override
@@ -305,7 +305,7 @@ bool MonoFlopImplementation::configure( SGPropertyNode& cfg_node,
     return true;
 
   if (cfg_name == "time") {
-    _time.push_back( new InputValue(prop_root, cfg_node) );
+    _time.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   } 
 

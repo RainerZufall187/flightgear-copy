@@ -23,7 +23,7 @@
 #ifndef __ANALOGCOMPONENT_HXX
 #define __ANALOGCOMPONENT_HXX 1
 
-#include "inputvalue.hxx"
+#include <simgear/misc/inputvalue.hxx>
 #include "component.hxx"
 
 namespace FGXMLAutopilot {
@@ -54,27 +54,27 @@ protected:
     /**
      * @brief the value input
      */
-    InputValueList _valueInput;
+    simgear::ValueList _valueInput;
 
     /**
      * @brief the reference input
      */
-    InputValueList _referenceInput;
+    simgear::ValueList _referenceInput;
 
     /**
      * @brief the minimum output clamp input
      */
-    InputValueList _minInput;
+    simgear::ValueList _minInput;
 
     /**
      * @brief the maximum output clamp input
      */
-    InputValueList _maxInput;
+    simgear::ValueList _maxInput;
 
     /**
      * @brief the configuration for periodical outputs
      */
-    PeriodicalValue_ptr _periodical;
+    simgear::PeriodicalValue_ptr _periodical;
 
     /**
      * @brief A constructor for an analog component. Call configure() to
@@ -138,7 +138,7 @@ protected:
     }
 
 public:
-    const PeriodicalValue * getPeriodicalValue() const { return _periodical; }
+    const simgear::PeriodicalValue_ptr getPeriodicalValue() const { return _periodical; }
 
     /**
      Add to <props> all properties that are used by this component. Similar to
@@ -150,9 +150,10 @@ public:
 inline void AnalogComponent::disabled( double dt )
 {
     if( _feedback_if_disabled && ! _output_list.empty() ) {
-        InputValue * input;
-        if( (input = _valueInput.get_active() ) != NULL )
-            input->set_value( _output_list[0]->getDoubleValue() );
+        auto activeInput = _valueInput.get_active();
+        if (activeInput) {
+            activeInput->set_value(_output_list[0]->getDoubleValue());
+        }
     }
 }
 

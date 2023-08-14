@@ -190,42 +190,26 @@ void FGSubmodelMgr::update(double dt)
 
     _contrail_trigger->setBoolValue(_user_alt_node->getDoubleValue() > contrail_altitude);
 
-    bool trigger = false;
-    int i = -1;
 
-    submodel_iterator = submodels.begin();
-    while (submodel_iterator != submodels.end()) {
-        i++;
-
-        /*SG_LOG(SG_AI, SG_DEBUG,
-                "Submodels:  " << (*submodel_iterator)->id
-                << " name " << (*submodel_iterator)->name
-                );*/
-
-        if ((*submodel_iterator)->trigger_node != 0) {
-            _trigger_node = (*submodel_iterator)->trigger_node;
+    for (auto sm : submodels) {
+        bool trigger = false;
+        if (sm->trigger_node) {
             trigger = _trigger_node->getBoolValue();
-            //cout << (*submodel_iterator)->name << "trigger node found " <<  trigger << endl;
-        } else {
-            trigger = false;
-            //cout << (*submodel_iterator)->name << " trigger node not found " << trigger << endl;
         }
 
-        if (trigger && (*submodel_iterator)->count != 0) {
+        if (trigger && sm->count != 0) {
             //int id = (*submodel_iterator)->id;
             //const string& name = (*submodel_iterator)->name;
-
             SG_LOG(SG_AI, SG_DEBUG,
-                   "Submodels release:  " << (*submodel_iterator)->id
-                                          << " name " << (*submodel_iterator)->name
-                                          << " count " << (*submodel_iterator)->count
-                                          << " slaved " << (*submodel_iterator)->slaved);
+                   "Submodels release:  " << sm->id
+                                          << " name " << sm->name
+                                          << " count " << sm->count
+                                          << " slaved " << sm->slaved);
 
-            release(*submodel_iterator, dt);
-        } else
-            (*submodel_iterator)->first_time = true;
-
-        ++submodel_iterator;
+            release(sm, dt);
+        } else {
+            sm->first_time = true; // reset first-time flag
+        }
     }
 }
 
@@ -537,40 +521,40 @@ void FGSubmodelMgr::setData(int id, const string& path, bool serviceable, const 
 
         if (a) {
             b = a->getNode("x-m");
-            sm->x_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->x_offset = new simgear::Value(*prop_root, b ? *b : n);
 
             b = a->getNode("y-m");
-            sm->y_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->y_offset = new simgear::Value(*prop_root, b ? *b : n);
 
             b = a->getNode("z-m");
-            sm->z_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->z_offset = new simgear::Value(*prop_root, b ? *b : n);
 
             b = a->getNode("heading-deg");
-            sm->yaw_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->yaw_offset = new simgear::Value(*prop_root, b ? *b : n);
 
             b = a->getNode("pitch-deg");
-            sm->pitch_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->pitch_offset = new simgear::Value(*prop_root, b ? *b : n);
         } else {
             bool old = false;
 
             b = entry_node->getNode("x-offset");
-            sm->x_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->x_offset = new simgear::Value(*prop_root, b ? *b : n);
             if (b) old = true;
 
             b = entry_node->getNode("y-offset");
-            sm->y_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->y_offset = new simgear::Value(*prop_root, b ? *b : n);
             if (b) old = true;
 
             b = entry_node->getNode("z-offset");
-            sm->z_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->z_offset = new simgear::Value(*prop_root, b ? *b : n);
             if (b) old = true;
 
             b = entry_node->getNode("yaw-offset");
-            sm->yaw_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->yaw_offset = new simgear::Value(*prop_root, b ? *b : n);
             if (b) old = true;
 
             b = entry_node->getNode("pitch-offset");
-            sm->pitch_offset = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+            sm->pitch_offset = new simgear::Value(*prop_root, b ? *b : n);
             if (b) old = true;
 
             if (old) {
@@ -583,11 +567,11 @@ void FGSubmodelMgr::setData(int id, const string& path, bool serviceable, const 
 
         // Maximum azimuth randomness error in degrees
         b = a->getNode("azimuth");
-        sm->azimuth_error = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+        sm->azimuth_error = new simgear::Value(*prop_root, b ? *b : n);
 
         // Maximum elevation randomness error in degrees
         b = a->getNode("elevation");
-        sm->elevation_error = new FGXMLAutopilot::InputValue(*prop_root, b ? *b : n);
+        sm->elevation_error = new simgear::Value(*prop_root, b ? *b : n);
 
         // Randomness of Cd (plus or minus)
         b = a->getNode("cd");
@@ -595,7 +579,7 @@ void FGSubmodelMgr::setData(int id, const string& path, bool serviceable, const 
             b = a->getNode("cd", true);
             b->setDoubleValue(0.1);
         }
-        sm->cd_randomness = new FGXMLAutopilot::InputValue(*prop_root, *b);
+        sm->cd_randomness = new simgear::Value(*prop_root, *b);
 
         // Randomness of life (plus or minus)
         b = a->getNode("life");
@@ -603,7 +587,7 @@ void FGSubmodelMgr::setData(int id, const string& path, bool serviceable, const 
             b = a->getNode("life", true);
             b->setDoubleValue(0.5);
         }
-        sm->life_randomness = new FGXMLAutopilot::InputValue(*prop_root, *b);
+        sm->life_randomness = new simgear::Value(*prop_root, *b);
 
         if (sm->contents_node != 0)
             sm->contents = sm->contents_node->getDoubleValue();

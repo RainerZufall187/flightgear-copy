@@ -42,10 +42,10 @@ class PISimpleController : public AnalogComponent
 
 private:
     // proportional component data
-    InputValueList _Kp;
+    simgear::ValueList _Kp;
 
     // integral component data
-    InputValueList _Ki;
+    simgear::ValueList _Ki;
     double _int_sum;
 
 protected:

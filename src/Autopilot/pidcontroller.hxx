@@ -41,9 +41,9 @@ class PIDController : public AnalogComponent
 {
 private:
     // Configuration values
-    InputValueList Kp;          // proportional gain
-    InputValueList Ti;          // Integrator time (sec)
-    InputValueList Td;          // Derivator time (sec)
+    simgear::ValueList Kp; // proportional gain
+    simgear::ValueList Ti; // Integrator time (sec)
+    simgear::ValueList Td; // Derivator time (sec)
 
     double alpha;               // low pass filter weighing factor (usually 0.1)
     double beta;                // process value weighing factor for

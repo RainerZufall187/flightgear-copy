@@ -43,12 +43,12 @@ bool PISimpleController::configure( SGPropertyNode& cfg_node,
   }
 
   if (cfg_name == "Kp") {
-    _Kp.push_back( new InputValue(prop_root, cfg_node) );
+    _Kp.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   } 
 
   if (cfg_name == "Ki") {
-    _Ki.push_back( new InputValue(prop_root, cfg_node) );
+    _Ki.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   }
 

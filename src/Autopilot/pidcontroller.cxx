@@ -251,17 +251,17 @@ bool PIDController::configure( SGPropertyNode& cfg_node,
   } 
 
   if (cfg_name == "Kp") {
-    Kp.push_back( new InputValue(prop_root, cfg_node) );
+    Kp.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   } 
 
   if (cfg_name == "Ti") {
-    Ti.push_back( new InputValue(prop_root, cfg_node) );
+    Ti.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   } 
 
   if (cfg_name == "Td") {
-    Td.push_back( new InputValue(prop_root, cfg_node) );
+    Td.push_back(new simgear::Value(prop_root, cfg_node));
     return true;
   } 
 

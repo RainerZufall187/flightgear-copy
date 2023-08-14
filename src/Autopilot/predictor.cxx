@@ -44,12 +44,12 @@ bool Predictor::configure( SGPropertyNode& cfg_node,
   }
   
   if (cfg_name == "seconds") {
-    _seconds.push_back( new InputValue(prop_root, cfg_node, 0) );
+    _seconds.push_back(new simgear::Value(prop_root, cfg_node, 0));
     return true;
   } 
 
   if (cfg_name == "filter-gain") {
-    _filter_gain.push_back( new InputValue(prop_root, cfg_node, 0) );
+    _filter_gain.push_back(new simgear::Value(prop_root, cfg_node, 0));
     return true;
   }
 
