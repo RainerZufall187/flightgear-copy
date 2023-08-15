@@ -24,6 +24,11 @@ Item {
         y: Style.strutSize
         ScrollBar.vertical: ScrollBar {}
 
+        function getDevelopmentYears() {
+            // 1996 - the year work began on FlightGear
+            return (new Date()).getFullYear() - 1996;
+        }
+
         Column {
             id: contentColumn
             spacing: Style.strutSize
@@ -89,9 +94,9 @@ Item {
                 color: Style.baseTextColor
                 wrapMode: Text.WordWrap
 
-                text: qsTr("<p>FlightGear is the result of twenty-five years of work " +
+                text: qsTr("<p>FlightGear is the result of %1 years of work " +
                            "by hundreds of contributors around the world. We'd be " +
-                           "delighted if you would join us.</p>\n")
+                           "delighted if you would join us.</p>\n").arg(flick.getDevelopmentYears())
 
 //                onLinkActivated: {
 //                    Qt.openUrlExternally(link)
