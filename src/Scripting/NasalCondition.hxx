@@ -4,6 +4,9 @@
 
 #pragma once
 
+// std
+#include <functional>
+
 #include <simgear/nasal/nasal.h>
 #include <simgear/structure/SGBinding.hxx>
 
