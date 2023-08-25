@@ -24,7 +24,7 @@ set(SOURCES
 	native_gui.cxx
 	nmea.cxx
 	opengc.cxx
-	props.cxx
+	propsProtocol.cxx
 	protocol.cxx
 	pve.cxx
 	ray.cxx
@@ -55,7 +55,7 @@ set(HEADERS
 	native_gui.hxx
 	nmea.hxx
 	opengc.hxx
-	props.hxx
+	propsProtocol.hxx
 	protocol.hxx
 	pve.hxx
 	ray.hxx

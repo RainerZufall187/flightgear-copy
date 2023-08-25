@@ -40,14 +40,14 @@
 #include <simgear/misc/strutils.hxx>
 #include <simgear/structure/commands.hxx>
 
-#include <Network/protocol.hxx>
 #include <Network/ATC-Main.hxx>
-#include <Network/atlas.hxx>
 #include <Network/AV400.hxx>
 #include <Network/AV400Sim.hxx>
 #include <Network/AV400WSim.hxx>
+#include <Network/atlas.hxx>
 #include <Network/flarm.hxx>
 #include <Network/garmin.hxx>
+#include <Network/generic.hxx>
 #include <Network/igc.hxx>
 #include <Network/joyclient.hxx>
 #include <Network/jsclient.hxx>
@@ -55,13 +55,13 @@
 #include <Network/native_ctrls.hxx>
 #include <Network/native_fdm.hxx>
 #include <Network/native_gui.hxx>
-#include <Network/opengc.hxx>
 #include <Network/nmea.hxx>
-#include <Network/props.hxx>
+#include <Network/opengc.hxx>
+#include <Network/propsProtocol.hxx>
+#include <Network/protocol.hxx>
 #include <Network/pve.hxx>
 #include <Network/ray.hxx>
 #include <Network/rul.hxx>
-#include <Network/generic.hxx>
 
 #if FG_HAVE_DDS
 #include <simgear/io/SGDataDistributionService.hxx>
