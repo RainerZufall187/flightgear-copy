@@ -136,7 +136,7 @@ void FGInputEvent::fire( FGEventData & eventData )
   }
 }
 
-void FGInputEvent::fire( SGBinding * binding, FGEventData & eventData )
+void FGInputEvent::fire( SGAbstractBinding * binding, FGEventData & eventData )
 {
   binding->fire();
 }
@@ -194,7 +194,7 @@ void FGAxisEvent::fire( FGEventData & eventData )
   FGInputEvent::fire( ed );
 }
 
-void FGAbsAxisEvent::fire( SGBinding * binding, FGEventData & eventData )
+void FGAbsAxisEvent::fire( SGAbstractBinding * binding, FGEventData & eventData )
 {
   // sets the "setting" node
   binding->fire( eventData.value );
@@ -207,7 +207,7 @@ FGRelAxisEvent::FGRelAxisEvent( FGInputDevice * device, SGPropertyNode_ptr node 
   tolerance = 0.0;
 }
 
-void FGRelAxisEvent::fire( SGBinding * binding, FGEventData & eventData )
+void FGRelAxisEvent::fire( SGAbstractBinding * binding, FGEventData & eventData )
 {
   // sets the "offset" node
   binding->fire( eventData.value, 1.0 );

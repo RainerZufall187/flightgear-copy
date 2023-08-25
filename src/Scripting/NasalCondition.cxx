@@ -1,26 +1,8 @@
-// NasalCondition -- expose SGCondition to Nasal
-//
-// Written by James Turner, started 2012.
-//
-// Copyright (C) 2012 James Turner
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileComment: expose SGCondition and SGBinding to Nasal
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2012 James Turner <james@flightgear.org>
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "config.h"
 
 #include "NasalCondition.hxx"
 #include "NasalSys.hxx"
@@ -30,7 +12,15 @@
 #include <simgear/nasal/cppbind/NasalHash.hxx>
 #include <simgear/props/condition.hxx>
 
+using NasalBindingRef = SGSharedPtr<NasalBinding>;
+
 typedef nasal::Ghost<SGConditionRef> NasalCondition;
+
+  void NasalBinding::innerFire() const
+  {
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    m_callback(nas->wrappedPropsNode(_arg));
+  }  
 
 //------------------------------------------------------------------------------
 static naRef f_createCondition(naContext c, naRef me, int argc, naRef* args)
@@ -64,6 +54,8 @@ naRef initNasalCondition(naRef globals, naContext c)
     .method("test", &SGCondition::test);
 
   nasal::Hash(globals, c).set("_createCondition", f_createCondition);
+
+
 
   return naNil();
 }

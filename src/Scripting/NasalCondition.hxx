@@ -1,28 +1,35 @@
-// NasalCondition.hxx -- expose SGCondition to Nasal
-//
-// Written by James Turner, started 2012.
-//
-// Copyright (C) 2012 James Turner
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileComment: expose SGCondition and SGBinding to Nasal
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2012 James Turner <james@flightgear.org>
 
-#ifndef SCRIPTING_NASAL_CONDITION_HXX
-#define SCRIPTING_NASAL_CONDITION_HXX
+#pragma once
 
 #include <simgear/nasal/nasal.h>
+#include <simgear/structure/SGBinding.hxx>
 
 naRef initNasalCondition(naRef globals, naContext c);
 
-#endif // of SCRIPTING_NASAL_CONDITION_HXX
+/**
+ * @brief implementation of SGAbstractBinding which
+ * invokes a Nasal callback. (without it being registered
+ * as a command).
+ * 
+ * The binding argument properties are converted to a wrapped
+ * Nasal Props.Node before the binding is fired
+ * 
+ */
+class NasalBinding : public SGAbstractBinding
+{
+public:
+  using NasalCallback = std::function<void(naRef)>;
+
+    NasalBinding(NasalCallback cb) : 
+        m_callback(cb)
+    {};
+
+private:
+  void innerFire() const override;
+
+  NasalCallback m_callback;
+};
+
