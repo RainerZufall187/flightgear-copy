@@ -16,11 +16,11 @@ using NasalBindingRef = SGSharedPtr<NasalBinding>;
 
 typedef nasal::Ghost<SGConditionRef> NasalCondition;
 
-  void NasalBinding::innerFire() const
-  {
+void NasalBinding::innerFire() const
+{
     auto nas = globals->get_subsystem<FGNasalSys>();
     m_callback(nas->wrappedPropsNode(_arg));
-  }  
+}
 
 //------------------------------------------------------------------------------
 static naRef f_createCondition(naContext c, naRef me, int argc, naRef* args)
@@ -54,7 +54,6 @@ naRef initNasalCondition(naRef globals, naContext c)
     .method("test", &SGCondition::test);
 
   nasal::Hash(globals, c).set("_createCondition", f_createCondition);
-
 
 
   return naNil();

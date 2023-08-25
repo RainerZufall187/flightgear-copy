@@ -21,15 +21,12 @@ naRef initNasalCondition(naRef globals, naContext c);
 class NasalBinding : public SGAbstractBinding
 {
 public:
-  using NasalCallback = std::function<void(naRef)>;
+    using NasalCallback = std::function<void(naRef)>;
 
-    NasalBinding(NasalCallback cb) : 
-        m_callback(cb)
-    {};
+    NasalBinding(NasalCallback cb) : m_callback(cb){};
 
 private:
-  void innerFire() const override;
+    void innerFire() const override;
 
-  NasalCallback m_callback;
+    NasalCallback m_callback;
 };
-

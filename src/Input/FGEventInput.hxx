@@ -151,7 +151,7 @@ public:
     static FGInputEvent * NewObject( FGInputDevice * device, SGPropertyNode_ptr node );
 
 protected:
-    virtual void fire( SGAbstractBinding * binding, FGEventData & eventData );
+    virtual void fire(SGAbstractBinding* binding, FGEventData& eventData);
     /* A more or less meaningfull description of the event */
     std::string desc;
 
@@ -214,7 +214,7 @@ public:
     FGRelAxisEvent( FGInputDevice * device, SGPropertyNode_ptr node );
 
 protected:
-    void fire( SGAbstractBinding * binding, FGEventData & eventData ) override;
+    void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
 };
 
 class FGAbsAxisEvent : public FGAxisEvent
@@ -223,7 +223,7 @@ public:
     FGAbsAxisEvent( FGInputDevice * device, SGPropertyNode_ptr node ) : FGAxisEvent( device, node ) {}
 
 protected:
-    void fire( SGAbstractBinding * binding, FGEventData & eventData ) override;
+    void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
 };
 
 typedef class SGSharedPtr<FGInputEvent> FGInputEvent_ptr;

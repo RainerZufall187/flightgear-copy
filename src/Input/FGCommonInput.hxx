@@ -39,14 +39,14 @@
 
 class FGCommonInput {
 public:
-  using binding_list_t = SGBindingList;
+    using binding_list_t = SGBindingList;
 
-  /*
+    /*
    read all "binding" nodes directly under the specified base node and fill the 
    vector of SGBinding supplied in binding_list. Reads all the mod-xxx bindings and 
    add the corresponding SGBindings.
    */
-  static void read_bindings (const SGPropertyNode * base, binding_list_t * binding_list, int modifiers, const std::string & module );
+    static void read_bindings(const SGPropertyNode* base, binding_list_t* binding_list, int modifiers, const std::string& module);
 };
 
 #endif
