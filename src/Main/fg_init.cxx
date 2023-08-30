@@ -703,9 +703,9 @@ int fgInitConfig ( int argc, char **argv, bool reinit )
     }
 
     // allow command line to override
-    if (options->isOptionSet("developer")) {
-        string s = options->valueForOption("developer", "yes");
-        developerMode = simgear::strutils::to_bool(s);
+    const simgear::optional<bool> devOption = options->checkBoolOptionSet("developer");
+    if (devOption.has_value()) { // User specified the developer option
+        developerMode = devOption.value();
     }
 
     auto node = fgGetNode("/sim/developer-mode", true);

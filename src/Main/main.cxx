@@ -568,7 +568,7 @@ int fgMainInit( int argc, char **argv )
 #endif
 
     // check if the launcher is requested, since it affects config file parsing
-    bool showLauncher = flightgear::Options::checkForArg(argc, argv, "launcher");
+    bool showLauncher = flightgear::Options::checkForArgEnable(argc, argv, "launcher");
     // an Info.plist bundle can't define command line arguments, but it can set
     // environment variables. This avoids needed a wrapper shell-script on OS-X.
     showLauncher |= (::getenv("FG_LAUNCHER") != nullptr);

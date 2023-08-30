@@ -1234,7 +1234,7 @@ static int
 fgOptConsole(const char *arg)
 {
     static bool already_done = false;
-    if (!already_done)
+    if (!already_done && Options::paramToBool(arg))
     {
         already_done = true;
         simgear::requestConsole(false);
@@ -1491,25 +1491,21 @@ fgOptCallSign(const char * arg)
 static int
 fgOptIgnoreAutosave(const char* arg)
 {
-    fgSetBool("/sim/startup/ignore-autosave", true);
+    const bool param = Options::paramToBool(arg);
+
+    fgSetBool("/sim/startup/ignore-autosave", param);
     // don't overwrite autosave on exit
-    fgSetBool("/sim/startup/save-on-exit", false);
+    fgSetBool("/sim/startup/save-on-exit", !param);
     return FG_OPTIONS_OK;
 }
 
 static int
-fgOptEnableFreeze(const char* arg)
+fgOptFreeze(const char* arg)
 {
-    fgSetBool("/sim/freeze/master", true);
-    fgSetBool("/sim/freeze/clock", true);
-    return FG_OPTIONS_OK;
-}
+    const bool param = Options::paramToBool(arg);
 
-static int
-fgOptDisableFreeze(const char* arg)
-{
-    fgSetBool("/sim/freeze/master", false);
-    fgSetBool("/sim/freeze/clock", false);
+    fgSetBool("/sim/freeze/master", param);
+    fgSetBool("/sim/freeze/clock", param);
     return FG_OPTIONS_OK;
 }
 
@@ -1750,285 +1746,398 @@ fgOptLoadTape(const char* arg)
     return FG_OPTIONS_OK;
 }
 
-static int fgOptDisableGUI(const char*)
+static int fgOptGUI(const char* arg)
 {
-    globals->set_headless(true);
+    const bool param = Options::paramToBool(arg);
+
+    // Reverse logic, headless is enabled when --gui is false
+    globals->set_headless(!param);
+    return FG_OPTIONS_OK;
+}
+
+static int fgOptHoldShort(const char* arg)
+{
+    const bool param = Options::paramToBool(arg);
+
+    // Reverse logic, this property set to true disables hold short
+    fgSetBool("/sim/presets/mp-hold-short-override", !param);
+    return FG_OPTIONS_OK;
+}
+
+static int fgOptNoTrim(const char* arg)
+{
+    const bool param = Options::paramToBool(arg);
+
+    // Reverse logic, param = true means NO trim
+    fgSetBool("/sim/presets/trim", !param);
+    return FG_OPTIONS_OK;
+}
+
+static int fgOptInAir(const char* arg)
+{
+    const bool param = Options::paramToBool(arg);
+
+    // Reverse logic, param = true means on ground = false
+    fgSetBool("/sim/presets/onground", !param);
     return FG_OPTIONS_OK;
 }
 
 /*
-   option       has_param type        property         b_param s_param  func
+   option      param_type type        property         b_param s_param  func
 
 where:
  option    : name of the option
- has_param : option is --name=value if true or --name if false
- type      : OPTION_BOOL    - property is a boolean
-             OPTION_STRING  - property is a string
-             OPTION_DOUBLE  - property is a double
-             OPTION_INT     - property is an integer
-             OPTION_CHANNEL - name of option is the name of a channel
-             OPTION_FUNC    - the option trigger a function
+ param_type: ParamType::NONE    - option has not parameter: --option
+             ParamType::BOOLEAN - option accept only boolean params true/false/1/0/yes/no
+                                  or no parameter (default true): --option=true
+             ParamType::REGULAR - option requires a parameter but it is none of the
+                                  above cases: --option=value
+ type      : OptionType::BOOL    - property is a boolean
+             OptionType::STRING  - property is a string
+             OptionType::DOUBLE  - property is a double
+             OptionType::INT     - property is an integer
+             OptionType::CHANNEL - name of option is the name of a channel
+             OptionType::FUNC    - the option trigger a function
  property  :
- b_param   : if type==OPTION_BOOL,
-             value set to the property (has_param is false for boolean)
- s_param   : if type==OPTION_STRING,
-             value set to the property if has_param is false
- func      : function called if type==OPTION_FUNC. if has_param is true,
-             the value is passed to the function as a string, otherwise,
-             s_param is passed.
+ b_param   : if type==OptionType::BOOL,
+             value set to the property (param_type is ParamType::NONE for boolean)
+ s_param   : if type==OptionType::STRING,
+             value set to the property if param_type is ParamType::NONE
+ func      : function called if type==OptionType::FUNC. if param_type is ParamType::BOOLEAN
+             or ParamType::REGULAR, the value is passed to the function as a string,
+             otherwise, s_param is passed.
 
-    For OPTION_DOUBLE and OPTION_INT, the parameter value is converted into a
+    For OptionType::DOUBLE and OptionType::INT, the parameter value is converted into a
     double or an integer and set to the property.
 
-    For OPTION_CHANNEL, add_channel is called with the parameter value as the
+    For OptionType::CHANNEL, add_channel is called with the parameter value as the
     argument.
 */
 
-enum OptionType { OPTION_BOOL = 0, OPTION_STRING, OPTION_DOUBLE, OPTION_INT, OPTION_CHANNEL, OPTION_FUNC, OPTION_IGNORE };
+enum ParamType { NONE = 0, BOOLEAN, REGULAR };
+enum OptionType { BOOL = 0, STRING, DOUBLE, INT, CHANNEL, FUNC, IGNORE };
 const int OPTION_MULTI = 1 << 17;
 
 struct OptionDesc {
     const char *option;
-    bool has_param;
+    int param_type;
     int type;
     const char *property;
     bool b_param;
     const char *s_param;
     int (*func)( const char * );
-    } fgOptionArray[] = {
-
-    {"language",                     true,  OPTION_IGNORE, "", false, "", 0 },
-    {"console",                      false, OPTION_FUNC,   "", false, "", fgOptConsole },
-    {"launcher",                     false, OPTION_IGNORE, "", false, "", 0 },
-    {"enable-sentry",                false, OPTION_BOOL,   "/sim/startup/sentry-crash-reporting-enabled", true, "", nullptr },
-    {"disable-sentry",               false, OPTION_BOOL,   "/sim/startup/sentry-crash-reporting-enabled", false, "", nullptr },
-    {"allow-nasal-from-sockets",     false, OPTION_IGNORE, "", false, "", 0 },
-    {"compositor",                   true,  OPTION_STRING, "/sim/rendering/default-compositor", false, "", 0 },
-    {"disable-splash-screen",        false, OPTION_BOOL,   "/sim/startup/splash-screen", false, "", 0 },
-    {"enable-splash-screen",         false, OPTION_BOOL,   "/sim/startup/splash-screen", true, "", 0 },
-    {"disable-mouse-pointer",        false, OPTION_STRING, "/sim/startup/mouse-pointer", false, "false", 0 },
-    {"enable-mouse-pointer",         false, OPTION_STRING, "/sim/startup/mouse-pointer", false, "true", 0 },
-    {"disable-random-objects",       false, OPTION_BOOL,   "/sim/rendering/random-objects", false, "", 0 },
-    {"enable-random-objects",        false, OPTION_BOOL,   "/sim/rendering/random-objects", true, "", 0 },
-    {"disable-random-vegetation",    false, OPTION_BOOL,   "/sim/rendering/random-vegetation", false, "", 0 },
-    {"enable-random-vegetation",     false, OPTION_BOOL,   "/sim/rendering/random-vegetation", true, "", 0 },
-    {"disable-random-buildings",     false, OPTION_BOOL,   "/sim/rendering/random-buildings", false, "", 0 },
-    {"enable-random-buildings",      false, OPTION_BOOL,   "/sim/rendering/random-buildings", true, "", 0 },
-    {"disable-real-weather-fetch",   false, OPTION_BOOL,   "/environment/realwx/enabled", false, "", 0 },
-    {"enable-real-weather-fetch",    false, OPTION_BOOL,   "/environment/realwx/enabled", true,  "", 0 },
-    {"metar",                        true,  OPTION_FUNC,   "", false, "", fgOptMetar },
-    {"disable-ai-models",            false, OPTION_BOOL,   "/sim/ai/enabled", false, "", 0 },
-    {"enable-ai-models",             false, OPTION_BOOL,   "/sim/ai/enabled", true, "", 0 },
-    {"disable-ai-traffic",           false, OPTION_BOOL,   "/sim/traffic-manager/enabled", false, "", 0 },
-    {"enable-ai-traffic",            false, OPTION_BOOL,   "/sim/traffic-manager/enabled", true,  "", 0 },
-    {"disable-freeze",               false, OPTION_FUNC,   "", false, "", fgOptDisableFreeze },
-    {"enable-freeze",                false, OPTION_FUNC,   "", true, "", fgOptEnableFreeze },
-    {"disable-fuel-freeze",          false, OPTION_BOOL,   "/sim/freeze/fuel", false, "", 0 },
-    {"enable-fuel-freeze",           false, OPTION_BOOL,   "/sim/freeze/fuel", true, "", 0 },
-    {"disable-clock-freeze",         false, OPTION_BOOL,   "/sim/freeze/clock", false, "", 0 },
-    {"enable-clock-freeze",          false, OPTION_BOOL,   "/sim/freeze/clock", true, "", 0 },
-    {"disable-hud-3d",               false, OPTION_BOOL,   "/sim/hud/enable3d[1]", false, "", 0 },
-    {"enable-hud-3d",                false, OPTION_BOOL,   "/sim/hud/enable3d[1]", true, "", 0 },
-    {"disable-anti-alias-hud",       false, OPTION_BOOL,   "/sim/hud/color/antialiased", false, "", 0 },
-    {"enable-anti-alias-hud",        false, OPTION_BOOL,   "/sim/hud/color/antialiased", true, "", 0 },
-    {"disable-auto-coordination",    false, OPTION_BOOL,   "/controls/flight/auto-coordination", false, "", 0 },
-    {"enable-auto-coordination",     false, OPTION_BOOL,   "/controls/flight/auto-coordination", true, "", 0 },
-    {"browser-app",                  true,  OPTION_STRING, "/sim/startup/browser-app", false, "", 0 },
-    {"disable-hud",                  false, OPTION_BOOL,   "/sim/hud/visibility[1]", false, "", 0 },
-    {"enable-hud",                   false, OPTION_BOOL,   "/sim/hud/visibility[1]", true, "", 0 },
-    {"disable-panel",                false, OPTION_BOOL,   "/sim/panel/visibility", false, "", 0 },
-    {"enable-panel",                 false, OPTION_BOOL,   "/sim/panel/visibility", true, "", 0 },
-    {"disable-sound",                false, OPTION_BOOL,   "/sim/sound/working", false, "", 0 },
-    {"enable-sound",                 false, OPTION_BOOL,   "/sim/sound/working", true, "", 0 },
-    {"sound-device",                 true,  OPTION_STRING, "/sim/sound/device-name", false, "", 0 },
-    {"airport",                      true,  OPTION_FUNC,   "", false, "", fgOptAirport },
-    {"runway",                       true,  OPTION_FUNC,   "", false, "", fgOptRunway },
-    {"vor",                          true,  OPTION_FUNC,   "", false, "", fgOptVOR },
-    {"vor-frequency",                true,  OPTION_DOUBLE, "/sim/presets/vor-freq", false, "", fgOptVOR },
-    {"ndb",                          true,  OPTION_FUNC,   "", false, "", fgOptNDB },
-    {"ndb-frequency",                true,  OPTION_DOUBLE, "/sim/presets/ndb-freq", false, "", fgOptVOR },
-    {"carrier",                      true,  OPTION_FUNC,   "", false, "", fgOptCarrier },
-    {"carrier-position",             true,  OPTION_FUNC,   "", false, "", fgOptCarrierPos },
-    {"fix",                          true,  OPTION_FUNC,   "", false, "", fgOptFIX },
-    {"tacan",                        true,  OPTION_FUNC,   "", false, "", fgOptTACAN },
-    {"offset-distance",              true,  OPTION_DOUBLE, "/sim/presets/offset-distance-nm", false, "", 0 },
-    {"offset-azimuth",               true,  OPTION_DOUBLE, "/sim/presets/offset-azimuth-deg", false, "", 0 },
-    {"lon",                          true,  OPTION_FUNC,   "", false, "", fgOptLon },
-    {"lat",                          true,  OPTION_FUNC,   "", false, "", fgOptLat },
-    {"altitude",                     true,  OPTION_FUNC,   "", false, "", fgOptAltitude },
-    {"uBody",                        true,  OPTION_FUNC,   "", false, "", fgOptUBody },
-    {"vBody",                        true,  OPTION_FUNC,   "", false, "", fgOptVBody },
-    {"wBody",                        true,  OPTION_FUNC,   "", false, "", fgOptWBody },
-    {"vNorth",                       true,  OPTION_FUNC,   "", false, "", fgOptVNorth },
-    {"vEast",                        true,  OPTION_FUNC,   "", false, "", fgOptVEast },
-    {"vDown",                        true,  OPTION_FUNC,   "", false, "", fgOptVDown },
-    {"vc",                           true,  OPTION_FUNC,   "", false, "", fgOptVc },
-    {"mach",                         true,  OPTION_FUNC,   "", false, "", fgOptMach },
-    {"heading",                      true,  OPTION_DOUBLE, "/sim/presets/heading-deg", false, "", 0 },
-    {"roll",                         true,  OPTION_DOUBLE, "/sim/presets/roll-deg", false, "", 0 },
-    {"pitch",                        true,  OPTION_DOUBLE, "/sim/presets/pitch-deg", false, "", 0 },
-    {"glideslope",                   true,  OPTION_DOUBLE, "/sim/presets/glideslope-deg", false, "", 0 },
-    {"roc",                          true,  OPTION_FUNC,   "", false, "", fgOptRoc },
-    {"fg-root",                      true,  OPTION_IGNORE, "", false, "", 0 },
-    {"fg-scenery",                   true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptFgScenery },
-    {"terrain-engine",               true,  OPTION_STRING, "/sim/scenery/engine", false, "tilecache", 0 },
-    {"lod-levels",                   true,  OPTION_STRING, "/sim/scenery/lod-levels", false, "1 3 5 7", 0 },
-    {"lod-res",                      true,  OPTION_STRING, "/sim/scenery/lod-res", false, "1", 0 },
-    {"lod-texturing",                true,  OPTION_STRING, "/sim/scenery/lod-texturing", false, "bluemarble", 0 },
-    {"lod-range-mult",               true,  OPTION_STRING, "/sim/scenery/lod-range-mult", false, "2", 0 },
-    {"fg-aircraft",                  true,  OPTION_IGNORE | OPTION_MULTI,   "", false, "", 0 },
-    {"fdm",                          true,  OPTION_STRING, "/sim/flight-model", false, "", 0 },
-    {"aero",                         true,  OPTION_STRING, "/sim/aero", false, "", 0 },
-    {"aircraft-dir",                 true,  OPTION_IGNORE, "", false, "", 0 },
-    {"state",                        true,  OPTION_IGNORE, "", false, "", 0 },
-    {"model-hz",                     true,  OPTION_INT,    "/sim/model-hz", false, "", 0 },
-    {"max-fps",                      true,  OPTION_DOUBLE, "/sim/frame-rate-throttle-hz", false, "", 0 },
-    {"speed",                        true,  OPTION_DOUBLE, "/sim/speed-up", false, "", 0 },
-    {"trim",                         false, OPTION_BOOL,   "/sim/presets/trim", true, "", 0 },
-    {"notrim",                       false, OPTION_BOOL,   "/sim/presets/trim", false, "", 0 },
-    {"on-ground",                    false, OPTION_BOOL,   "/sim/presets/onground", true, "", 0 },
-    {"in-air",                       false, OPTION_BOOL,   "/sim/presets/onground", false, "", 0 },
-    {"disable-hold-short",           false, OPTION_BOOL,   "/sim/presets/mp-hold-short-override", true, "", 0 },
-    {"fog-disable",                  false, OPTION_STRING, "/sim/rendering/fog", false, "disabled", 0 },
-    {"fog-fastest",                  false, OPTION_STRING, "/sim/rendering/fog", false, "fastest", 0 },
-    {"fog-nicest",                   false, OPTION_STRING, "/sim/rendering/fog", false, "nicest", 0 },
-    {"disable-horizon-effect",       false, OPTION_BOOL,   "/sim/rendering/horizon-effect", false, "", 0 },
-    {"enable-horizon-effect",        false, OPTION_BOOL,   "/sim/rendering/horizon-effect", true, "", 0 },
-    {"disable-distance-attenuation", false, OPTION_BOOL,   "/sim/rendering/distance-attenuation", false, "", 0 },
-    {"enable-distance-attenuation",  false, OPTION_BOOL,   "/sim/rendering/distance-attenuation", true, "", 0 },
-    {"disable-specular-highlight",   false, OPTION_BOOL,   "/sim/rendering/specular-highlight", false, "", 0 },
-    {"enable-specular-highlight",    false, OPTION_BOOL,   "/sim/rendering/specular-highlight", true, "", 0 },
-    {"disable-clouds",               false, OPTION_BOOL,   "/environment/clouds/status", false, "", 0 },
-    {"enable-clouds",                false, OPTION_BOOL,   "/environment/clouds/status", true, "", 0 },
-    {"disable-clouds3d",             false, OPTION_BOOL,   "/sim/rendering/clouds3d-enable", false, "", 0 },
-    {"enable-clouds3d",              false, OPTION_BOOL,   "/sim/rendering/clouds3d-enable", true, "", 0 },
-    {"fov",                          true,  OPTION_FUNC,   "", false, "", fgOptFov },
-    {"aspect-ratio-multiplier",      true,  OPTION_DOUBLE, "/sim/current-view/aspect-ratio-multiplier", false, "", 0 },
-    {"disable-fullscreen",           false, OPTION_BOOL,   "/sim/startup/fullscreen", false, "", 0 },
-    {"enable-fullscreen",            false, OPTION_BOOL,   "/sim/startup/fullscreen", true, "", 0 },
-    {"disable-save-on-exit",         false, OPTION_BOOL,   "/sim/startup/save-on-exit", false, "", 0 },
-    {"enable-save-on-exit",          false, OPTION_BOOL,   "/sim/startup/save-on-exit", true, "", 0 },
-    {"read-only",                    false, OPTION_BOOL,   "/sim/fghome-readonly", true, "", 0 },
-    {"ignore-autosave",              false, OPTION_FUNC,   "", false, "", fgOptIgnoreAutosave },
-    {"restore-defaults",             false, OPTION_BOOL,   "/sim/startup/restore-defaults", true, "", 0 },
-    {"shading-flat",                 false, OPTION_BOOL,   "/sim/rendering/shading", false, "", 0 },
-    {"shading-smooth",               false, OPTION_BOOL,   "/sim/rendering/shading", true, "", 0 },
-    {"texture-filtering",            false, OPTION_INT,    "/sim/rendering/filtering", 1, "", 0 },
-    {"disable-wireframe",            false, OPTION_BOOL,   "/sim/rendering/wireframe", false, "", 0 },
-    {"enable-wireframe",             false, OPTION_BOOL,   "/sim/rendering/wireframe", true, "", 0 },
-    {"materials-file",               true,  OPTION_STRING, "/sim/rendering/materials-file", false, "", 0 },
-#ifdef ENABLE_OSGXR
-    {"disable-vr",                   false, OPTION_BOOL,   "/sim/vr/enabled", false, "", 0 },
-    {"enable-vr",                    false, OPTION_BOOL,   "/sim/vr/enabled", true, "", 0 },
-#endif
-    {"disable-terrasync",            false, OPTION_BOOL,   "/sim/terrasync/enabled", false, "", 0 },
-    {"enable-terrasync",             false, OPTION_BOOL,   "/sim/terrasync/enabled", true, "", 0 },
-    {"terrasync-dir",                true,  OPTION_IGNORE, "", false, "", 0 },
-    {"download-dir",                 true,  OPTION_IGNORE, "", false, "", 0 },
-    {"texture-cache-dir",            true,  OPTION_IGNORE, "", false, "", 0 },
-    {"enable-texture-cache",         false, OPTION_BOOL,   "/sim/rendering/texture-cache/cache-enabled", true, "", 0 },
-    {"disable-texture-cache",        false, OPTION_BOOL,   "/sim/rendering/texture-cache/cache-enabled", false, "", 0 },
-    {"allow-nasal-read",             true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptAllowNasalRead },
-    {"geometry",                     true,  OPTION_FUNC,   "", false, "", fgOptGeometry },
-    {"bpp",                          true,  OPTION_FUNC,   "", false, "", fgOptBpp },
-    {"units-feet",                   false, OPTION_STRING, "/sim/startup/units", false, "feet", 0 },
-    {"units-meters",                 false, OPTION_STRING, "/sim/startup/units", false, "meters", 0 },
-    {"timeofday",                    true,  OPTION_STRING, "/sim/startup/time-offset-type", false, "noon", 0 },
-    {"time-offset",                  true,  OPTION_FUNC,   "", false, "", fgOptTimeOffset },
-    {"time-match-real",              false, OPTION_STRING, "/sim/startup/time-offset-type", false, "system-offset", 0 },
-    {"time-match-local",             false, OPTION_STRING, "/sim/startup/time-offset-type", false, "latitude-offset", 0 },
-    {"start-date-sys",               true,  OPTION_FUNC,   "", false, "", fgOptStartDateSys },
-    {"start-date-lat",               true,  OPTION_FUNC,   "", false, "", fgOptStartDateLat },
-    {"start-date-gmt",               true,  OPTION_FUNC,   "", false, "", fgOptStartDateGmt },
-    {"hud-tris",                     false, OPTION_STRING, "/sim/hud/frame-stat-type", false, "tris", 0 },
-    {"hud-culled",                   false, OPTION_STRING, "/sim/hud/frame-stat-type", false, "culled", 0 },
-    {"atcsim",                       true,  OPTION_CHANNEL, "", false, "dummy", 0 },
-    {"atlas",                        true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"httpd",                        true,  OPTION_FUNC   , "", false, "", fgOptHttpd },
-    {"jpg-httpd",                    true,  OPTION_FUNC,    "", false, "", fgOptJpgHttpd },
-    {"native",                       true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"native-ctrls",                 true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"native-fdm",                   true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"native-gui",                   true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"dds-props",                    true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"opengc",                       true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"AV400",                        true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"AV400Sim",                     true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"AV400WSimA",                   true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"AV400WSimB",                   true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"flarm",                        true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"garmin",                       true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"igc",                          true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"nmea",                         true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"generic",                      true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"props",                        true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"telnet",                       true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-    {"pve",                          true,  OPTION_CHANNEL, "", false, "", 0 },
-    {"ray",                          true,  OPTION_CHANNEL, "", false, "", 0 },
-    {"rul",                          true,  OPTION_CHANNEL, "", false, "", 0 },
-    {"joyclient",                    true,  OPTION_CHANNEL, "", false, "", 0 },
-    {"jsclient",                     true,  OPTION_CHANNEL, "", false, "", 0 },
-    {"proxy",                        true,  OPTION_FUNC,    "", false, "", fgSetupProxy },
-    {"callsign",                     true,  OPTION_FUNC,    "", false, "", fgOptCallSign},
-    {"multiplay",                    true,  OPTION_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-#if FG_HAVE_HLA
-    {"hla",                          true,  OPTION_CHANNEL, "", false, "", 0 },
-    {"hla-local",                    true,  OPTION_CHANNEL, "", false, "", 0 },
-#endif
-    {"trace-read",                   true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptTraceRead },
-    {"trace-write",                  true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptTraceWrite },
-    {"log-level",                    true,  OPTION_FUNC,   "", false, "", fgOptLogLevel },
-    {"log-class",                    true,  OPTION_FUNC,   "", false, "", fgOptLogClasses },
-    {"log-dir",                      true,  OPTION_FUNC | OPTION_MULTI, "", false, "", fgOptLogDir },
-    {"view-offset",                  true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptViewOffset },
-    {"visibility",                   true,  OPTION_FUNC,   "", false, "", fgOptVisibilityMeters },
-    {"visibility-miles",             true,  OPTION_FUNC,   "", false, "", fgOptVisibilityMiles },
-    {"random-wind",                  false, OPTION_FUNC,   "", false, "", fgOptRandomWind },
-    {"wind",                         true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptWind },
-    {"turbulence",                   true,  OPTION_FUNC,   "", false, "", fgOptTurbulence },
-    {"ceiling",                      true,  OPTION_FUNC,   "", false, "", fgOptCeiling },
-    {"wp",                           true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptWp },
-    {"flight-plan",                  true,  OPTION_STRING,   "/autopilot/route-manager/file-path", false, "", NULL },
-    {"config",                       true,  OPTION_IGNORE | OPTION_MULTI,   "", false, "", 0 },
-    {"addon",                        true,  OPTION_FUNC | OPTION_MULTI, "", false, "", fgOptAddon },
-    {"data",                         true,  OPTION_FUNC | OPTION_MULTI, "", false, "", fgOptAdditionalDataDir },
-    {"aircraft",                     true,  OPTION_STRING, "/sim/aircraft", false, "", 0 },
-    {"vehicle",                      true,  OPTION_STRING, "/sim/aircraft", false, "", 0 },
-    {"failure",                      true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptFailure },
-#ifdef ENABLE_IAX
-    {"enable-fgcom",                 false, OPTION_BOOL,   "/sim/fgcom/enabled", true, "", 0 },
-    {"disable-fgcom",                false, OPTION_BOOL,   "/sim/fgcom/enabled", false, "", 0 },
-#endif
-    {"com1",                         true,  OPTION_DOUBLE, "/instrumentation/comm[0]/frequencies/selected-mhz", false, "", 0 },
-    {"com2",                         true,  OPTION_DOUBLE, "/instrumentation/comm[1]/frequencies/selected-mhz", false, "", 0 },
-    {"nav1",                         true,  OPTION_FUNC,   "", false, "", fgOptNAV1 },
-    {"nav2",                         true,  OPTION_FUNC,   "", false, "", fgOptNAV2 },
-    {"adf", /*legacy*/               true,  OPTION_FUNC,   "", false, "", fgOptADF },
-    {"adf1",                         true,  OPTION_FUNC,   "", false, "", fgOptADF1 },
-    {"adf2",                         true,  OPTION_FUNC,   "", false, "", fgOptADF2 },
-    {"dme",                          true,  OPTION_FUNC,   "", false, "", fgOptDME },
-    {"min-status",                   true,  OPTION_STRING,  "/sim/aircraft-min-status", false, "all", 0 },
-    {"livery",                       true,  OPTION_FUNC,   "", false, "", fgOptLivery },
-    {"ai-scenario",                  true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptScenario },
-    {"parking-id",                   true,  OPTION_FUNC,   "", false, "", fgOptParkpos },
-    {"parkpos",                      true,  OPTION_FUNC,   "", false, "", fgOptParkpos },
-    {"version",                      false, OPTION_IGNORE, "", false, "", 0 },
-    {"json-report",                  false, OPTION_IGNORE, "", false, "", 0 },
-    {"enable-fpe",                   false, OPTION_IGNORE, "", false, "", 0},
-    {"fgviewer",                     false, OPTION_IGNORE, "", false, "", 0},
-    {"no-default-config",            false, OPTION_IGNORE, "", false, "", 0},
-    {"prop",                         true,  OPTION_FUNC | OPTION_MULTI,   "", false, "", fgOptSetProperty},
-    {"load-tape",                    true,  OPTION_FUNC,   "", false, "", fgOptLoadTape },
-    {"load-tape-create-video",       true,  OPTION_BOOL,    "/sim/startup/load-tape/create-video", true, "", nullptr },
-    {"load-tape-fixed-dt",           true,  OPTION_DOUBLE, "/sim/startup/load-tape/fixed-dt", false, "", nullptr },
-    {"developer",                    true,  OPTION_IGNORE | OPTION_BOOL, "", false, "", nullptr },
-    {"jsbsim-output-directive-file", true,  OPTION_STRING, "/sim/jsbsim/output-directive-file", false, "", nullptr },
-    {"disable-gui",                  false, OPTION_FUNC, "", false, "", fgOptDisableGUI },
-    {"graphics-preset",              true,  OPTION_STRING, "/sim/rendering/preset", false, "", nullptr},
-    {"composite-viewer",             true,  OPTION_INT,    "/sim/rendering/composite-viewer-enabled", false, "", nullptr},
-    {"restart-launcher",             false, OPTION_BOOL, "/sim/restart-launcher-on-exit", true, "", nullptr},
-    {nullptr,                        false, 0,             nullptr, false, nullptr, nullptr}
 };
+
+const std::initializer_list<OptionDesc> fgOptionArray = {
+    // clang-format off
+    {"language",                     ParamType::REGULAR, OptionType::IGNORE, "", false, "", 0 },
+    {"console",                      ParamType::BOOLEAN, OptionType::FUNC,   "", false, "true", fgOptConsole },
+    {"compositor",                   ParamType::REGULAR, OptionType::STRING, "/sim/rendering/default-compositor", false, "", 0 },
+    {"metar",                        ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptMetar },
+    {"browser-app",                  ParamType::REGULAR, OptionType::STRING, "/sim/startup/browser-app", false, "", 0 },
+    {"sound-device",                 ParamType::REGULAR, OptionType::STRING, "/sim/sound/device-name", false, "", 0 },
+    {"airport",                      ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptAirport },
+    {"runway",                       ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptRunway },
+    {"vor",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVOR },
+    {"vor-frequency",                ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/vor-freq", false, "", fgOptVOR },
+    {"ndb",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptNDB },
+    {"ndb-frequency",                ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/ndb-freq", false, "", fgOptVOR },
+    {"carrier",                      ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptCarrier },
+    {"carrier-position",             ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptCarrierPos },
+    {"fix",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptFIX },
+    {"tacan",                        ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptTACAN },
+    {"offset-distance",              ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/offset-distance-nm", false, "", 0 },
+    {"offset-azimuth",               ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/offset-azimuth-deg", false, "", 0 },
+    {"lon",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptLon },
+    {"lat",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptLat },
+    {"altitude",                     ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptAltitude },
+    {"uBody",                        ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptUBody },
+    {"vBody",                        ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVBody },
+    {"wBody",                        ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptWBody },
+    {"vNorth",                       ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVNorth },
+    {"vEast",                        ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVEast },
+    {"vDown",                        ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVDown },
+    {"vc",                           ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVc },
+    {"mach",                         ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptMach },
+    {"heading",                      ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/heading-deg", false, "", 0 },
+    {"roll",                         ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/roll-deg", false, "", 0 },
+    {"pitch",                        ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/pitch-deg", false, "", 0 },
+    {"glideslope",                   ParamType::REGULAR, OptionType::DOUBLE, "/sim/presets/glideslope-deg", false, "", 0 },
+    {"roc",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptRoc },
+    {"fg-root",                      ParamType::REGULAR, OptionType::IGNORE, "", false, "", 0 },
+    {"fg-scenery",                   ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptFgScenery },
+    {"terrain-engine",               ParamType::REGULAR, OptionType::STRING, "/sim/scenery/engine", false, "tilecache", 0 },
+    {"lod-levels",                   ParamType::REGULAR, OptionType::STRING, "/sim/scenery/lod-levels", false, "1 3 5 7", 0 },
+    {"lod-res",                      ParamType::REGULAR, OptionType::STRING, "/sim/scenery/lod-res", false, "1", 0 },
+    {"lod-texturing",                ParamType::REGULAR, OptionType::STRING, "/sim/scenery/lod-texturing", false, "bluemarble", 0 },
+    {"lod-range-mult",               ParamType::REGULAR, OptionType::STRING, "/sim/scenery/lod-range-mult", false, "2", 0 },
+    {"fg-aircraft",                  ParamType::REGULAR, OptionType::IGNORE | OPTION_MULTI,   "", false, "", 0 },
+    {"fdm",                          ParamType::REGULAR, OptionType::STRING, "/sim/flight-model", false, "", 0 },
+    {"aero",                         ParamType::REGULAR, OptionType::STRING, "/sim/aero", false, "", 0 },
+    {"aircraft-dir",                 ParamType::REGULAR, OptionType::IGNORE, "", false, "", 0 },
+    {"state",                        ParamType::REGULAR, OptionType::IGNORE, "", false, "", 0 },
+    {"model-hz",                     ParamType::REGULAR, OptionType::INT,    "/sim/model-hz", false, "", 0 },
+    {"max-fps",                      ParamType::REGULAR, OptionType::DOUBLE, "/sim/frame-rate-throttle-hz", false, "", 0 },
+    {"speed",                        ParamType::REGULAR, OptionType::DOUBLE, "/sim/speed-up", false, "", 0 },
+    {"trim",                         ParamType::BOOLEAN, OptionType::BOOL,   "/sim/presets/trim", true, "", 0 },
+    {"notrim",                       ParamType::BOOLEAN, OptionType::FUNC,   "", false, "true", fgOptNoTrim },
+    {"on-ground",                    ParamType::BOOLEAN, OptionType::BOOL,   "/sim/presets/onground", true, "", 0 },
+    {"in-air",                       ParamType::BOOLEAN, OptionType::FUNC,   "", false, "true", fgOptInAir },
+    {"fog-disable",                  ParamType::NONE,    OptionType::STRING, "/sim/rendering/fog", false, "disabled", 0 },
+    {"fog-fastest",                  ParamType::NONE,    OptionType::STRING, "/sim/rendering/fog", false, "fastest", 0 },
+    {"fog-nicest",                   ParamType::NONE,    OptionType::STRING, "/sim/rendering/fog", false, "nicest", 0 },
+    {"fov",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptFov },
+    {"aspect-ratio-multiplier",      ParamType::REGULAR, OptionType::DOUBLE, "/sim/current-view/aspect-ratio-multiplier", false, "", 0 },
+    {"shading-flat",                 ParamType::NONE,    OptionType::BOOL,   "/sim/rendering/shading", false, "", 0 },
+    {"shading-smooth",               ParamType::NONE,    OptionType::BOOL,   "/sim/rendering/shading", true, "", 0 },
+    {"texture-filtering",            ParamType::NONE,    OptionType::INT,    "/sim/rendering/filtering", 1, "", 0 },
+    {"materials-file",               ParamType::REGULAR, OptionType::STRING, "/sim/rendering/materials-file", false, "", 0 },
+    {"terrasync-dir",                ParamType::REGULAR, OptionType::IGNORE, "", false, "", 0 },
+    {"download-dir",                 ParamType::REGULAR, OptionType::IGNORE, "", false, "", 0 },
+    {"texture-cache-dir",            ParamType::REGULAR, OptionType::IGNORE, "", false, "", 0 },
+    {"allow-nasal-read",             ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptAllowNasalRead },
+    {"geometry",                     ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptGeometry },
+    {"bpp",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptBpp },
+    {"units-feet",                   ParamType::NONE,    OptionType::STRING, "/sim/startup/units", false, "feet", 0 },
+    {"units-meters",                 ParamType::NONE,    OptionType::STRING, "/sim/startup/units", false, "meters", 0 },
+    {"timeofday",                    ParamType::REGULAR, OptionType::STRING, "/sim/startup/time-offset-type", false, "noon", 0 },
+    {"time-offset",                  ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptTimeOffset },
+    {"time-match-real",              ParamType::NONE,    OptionType::STRING, "/sim/startup/time-offset-type", false, "system-offset", 0 },
+    {"time-match-local",             ParamType::NONE,    OptionType::STRING, "/sim/startup/time-offset-type", false, "latitude-offset", 0 },
+    {"start-date-sys",               ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptStartDateSys },
+    {"start-date-lat",               ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptStartDateLat },
+    {"start-date-gmt",               ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptStartDateGmt },
+    {"hud-tris",                     ParamType::NONE,    OptionType::STRING, "/sim/hud/frame-stat-type", false, "tris", 0 },
+    {"hud-culled",                   ParamType::NONE,    OptionType::STRING, "/sim/hud/frame-stat-type", false, "culled", 0 },
+    {"atcsim",                       ParamType::REGULAR, OptionType::CHANNEL, "", false, "dummy", 0 },
+    {"atlas",                        ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"httpd",                        ParamType::REGULAR, OptionType::FUNC,    "", false, "", fgOptHttpd },
+    {"jpg-httpd",                    ParamType::REGULAR, OptionType::FUNC,    "", false, "", fgOptJpgHttpd },
+    {"native",                       ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"native-ctrls",                 ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"native-fdm",                   ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"native-gui",                   ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"dds-props",                    ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"opengc",                       ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"AV400",                        ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"AV400Sim",                     ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"AV400WSimA",                   ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"AV400WSimB",                   ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"flarm",                        ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"garmin",                       ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"igc",                          ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"nmea",                         ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"generic",                      ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"props",                        ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"telnet",                       ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+    {"pve",                          ParamType::REGULAR, OptionType::CHANNEL, "", false, "", 0 },
+    {"ray",                          ParamType::REGULAR, OptionType::CHANNEL, "", false, "", 0 },
+    {"rul",                          ParamType::REGULAR, OptionType::CHANNEL, "", false, "", 0 },
+    {"joyclient",                    ParamType::REGULAR, OptionType::CHANNEL, "", false, "", 0 },
+    {"jsclient",                     ParamType::REGULAR, OptionType::CHANNEL, "", false, "", 0 },
+    {"proxy",                        ParamType::REGULAR, OptionType::FUNC,    "", false, "", fgSetupProxy },
+    {"callsign",                     ParamType::REGULAR, OptionType::FUNC,    "", false, "", fgOptCallSign},
+    {"multiplay",                    ParamType::REGULAR, OptionType::CHANNEL | OPTION_MULTI, "", false, "", 0 },
+#if FG_HAVE_HLA
+    {"hla",                          ParamType::REGULAR, OptionType::CHANNEL, "", false, "", 0 },
+    {"hla-local",                    ParamType::REGULAR, OptionType::CHANNEL, "", false, "", 0 },
+#endif
+    {"trace-read",                   ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptTraceRead },
+    {"trace-write",                  ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptTraceWrite },
+    {"log-level",                    ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptLogLevel },
+    {"log-class",                    ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptLogClasses },
+    {"log-dir",                      ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI, "", false, "", fgOptLogDir },
+    {"view-offset",                  ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptViewOffset },
+    {"visibility",                   ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVisibilityMeters },
+    {"visibility-miles",             ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptVisibilityMiles },
+    {"random-wind",                  ParamType::NONE,    OptionType::FUNC,   "", false, "", fgOptRandomWind },
+    {"wind",                         ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptWind },
+    {"turbulence",                   ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptTurbulence },
+    {"ceiling",                      ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptCeiling },
+    {"wp",                           ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptWp },
+    {"flight-plan",                  ParamType::REGULAR, OptionType::STRING,   "/autopilot/route-manager/file-path", false, "", NULL },
+    {"config",                       ParamType::REGULAR, OptionType::IGNORE | OPTION_MULTI,   "", false, "", 0 },
+    {"addon",                        ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI, "", false, "", fgOptAddon },
+    {"data",                         ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI, "", false, "", fgOptAdditionalDataDir },
+    {"aircraft",                     ParamType::REGULAR, OptionType::STRING, "/sim/aircraft", false, "", 0 },
+    {"vehicle",                      ParamType::REGULAR, OptionType::STRING, "/sim/aircraft", false, "", 0 },
+    {"failure",                      ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptFailure },
+    {"com1",                         ParamType::REGULAR, OptionType::DOUBLE, "/instrumentation/comm[0]/frequencies/selected-mhz", false, "", 0 },
+    {"com2",                         ParamType::REGULAR, OptionType::DOUBLE, "/instrumentation/comm[1]/frequencies/selected-mhz", false, "", 0 },
+    {"nav1",                         ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptNAV1 },
+    {"nav2",                         ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptNAV2 },
+    {"adf", /*legacy*/               ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptADF },
+    {"adf1",                         ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptADF1 },
+    {"adf2",                         ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptADF2 },
+    {"dme",                          ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptDME },
+    {"min-status",                   ParamType::REGULAR, OptionType::STRING,  "/sim/aircraft-min-status", false, "all", 0 },
+    {"livery",                       ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptLivery },
+    {"ai-scenario",                  ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptScenario },
+    {"parking-id",                   ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptParkpos },
+    {"parkpos",                      ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptParkpos },
+    {"version",                      ParamType::BOOLEAN, OptionType::BOOL,   "", true, "", nullptr },
+    {"json-report",                  ParamType::BOOLEAN, OptionType::BOOL,   "", true, "", nullptr },
+    {"fgviewer",                     ParamType::NONE,    OptionType::IGNORE, "", false, "", 0},
+    {"no-default-config",            ParamType::BOOLEAN, OptionType::IGNORE, "", false, "", 0},
+    {"prop",                         ParamType::REGULAR, OptionType::FUNC | OPTION_MULTI,   "", false, "", fgOptSetProperty},
+    {"load-tape",                    ParamType::REGULAR, OptionType::FUNC,   "", false, "", fgOptLoadTape },
+    {"load-tape-fixed-dt",           ParamType::REGULAR, OptionType::DOUBLE, "/sim/startup/load-tape/fixed-dt", false, "", nullptr },
+    {"jsbsim-output-directive-file", ParamType::REGULAR, OptionType::STRING, "/sim/jsbsim/output-directive-file", false, "", nullptr },
+    {"graphics-preset",              ParamType::REGULAR, OptionType::STRING, "/sim/rendering/preset", false, "", nullptr},
+    {"show-aircraft",                ParamType::BOOLEAN, OptionType::IGNORE, "", true, "", nullptr },
+    {"show-sound-devices",           ParamType::BOOLEAN, OptionType::IGNORE, "", true, "", nullptr },
+
+    // Enable/disable options that can be used in many ways,
+    // with enable/disable prefixes as well as without, but with a value of 1/0 or true/false or yes/no.
+    // Examples of use:
+    // --enable-fullscreen  (enable)
+    // --disable-fullscreen (disable)
+    // --fullscreen         (enable)
+    // --fullscreen=true    (enable)
+    // --fullscreen=false   (disable)
+    // --fullscreen=1       (enable)
+    // --fullscreen=0       (disable)
+    // --fullscreen=yes     (enable)
+    // --fullscreen=no      (disable)
+    // --fullscreen true    (enable)
+    // --fullscreen false   (disable)
+    // --fullscreen 1       (enable)
+    // --fullscreen 0       (disable)
+    // --fullscreen yes     (enable)
+    // --fullscreen no      (disable)
+
+    {"ai-models",                        ParamType::BOOLEAN, OptionType::BOOL, "/sim/ai/enabled", true,  "", nullptr },
+    {"disable-ai-models",                ParamType::NONE,    OptionType::BOOL, "/sim/ai/enabled", false, "", nullptr },
+    {"enable-ai-models",                 ParamType::NONE,    OptionType::BOOL, "/sim/ai/enabled", true,  "", nullptr },
+    {"ai-traffic",                       ParamType::BOOLEAN, OptionType::BOOL, "/sim/traffic-manager/enabled", true,  "", nullptr },
+    {"disable-ai-traffic",               ParamType::NONE,    OptionType::BOOL, "/sim/traffic-manager/enabled", false, "", nullptr },
+    {"enable-ai-traffic",                ParamType::NONE,    OptionType::BOOL, "/sim/traffic-manager/enabled", true,  "", nullptr },
+    {"allow-nasal-from-sockets",         ParamType::BOOLEAN, OptionType::BOOL, "", true,  "", nullptr },
+    {"disable-allow-nasal-from-sockets", ParamType::NONE,    OptionType::BOOL, "", false, "", nullptr },
+    {"enable-allow-nasal-from-sockets",  ParamType::NONE,    OptionType::BOOL, "", true,  "", nullptr },
+    {"anti-alias-hud",                   ParamType::BOOLEAN, OptionType::BOOL, "/sim/hud/color/antialiased", true,  "", nullptr },
+    {"disable-anti-alias-hud",           ParamType::NONE,    OptionType::BOOL, "/sim/hud/color/antialiased", false, "", nullptr },
+    {"enable-anti-alias-hud",            ParamType::NONE,    OptionType::BOOL, "/sim/hud/color/antialiased", true,  "", nullptr },
+    {"auto-coordination",                ParamType::BOOLEAN, OptionType::BOOL, "/controls/flight/auto-coordination", true,  "", nullptr },
+    {"disable-auto-coordination",        ParamType::NONE,    OptionType::BOOL, "/controls/flight/auto-coordination", false, "", nullptr },
+    {"enable-auto-coordination",         ParamType::NONE,    OptionType::BOOL, "/controls/flight/auto-coordination", true,  "", nullptr },
+    {"clock-freeze",                     ParamType::BOOLEAN, OptionType::BOOL, "/sim/freeze/clock", true,  "", nullptr },
+    {"disable-clock-freeze",             ParamType::NONE,    OptionType::BOOL, "/sim/freeze/clock", false, "", nullptr },
+    {"enable-clock-freeze",              ParamType::NONE,    OptionType::BOOL, "/sim/freeze/clock", true,  "", nullptr },
+    {"clouds",                           ParamType::BOOLEAN, OptionType::BOOL, "/environment/clouds/status", true,  "", nullptr },
+    {"disable-clouds",                   ParamType::NONE,    OptionType::BOOL, "/environment/clouds/status", false, "", nullptr },
+    {"enable-clouds",                    ParamType::NONE,    OptionType::BOOL, "/environment/clouds/status", true,  "", nullptr },
+    {"clouds3d",                         ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/clouds3d-enable", true,  "", nullptr },
+    {"disable-clouds3d",                 ParamType::NONE,    OptionType::BOOL, "/sim/rendering/clouds3d-enable", false, "", nullptr },
+    {"enable-clouds3d",                  ParamType::NONE,    OptionType::BOOL, "/sim/rendering/clouds3d-enable", true,  "", nullptr },
+    {"composite-viewer",                 ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/composite-viewer-enabled", true,  "", nullptr},
+    {"disable-composite-viewer",         ParamType::NONE,    OptionType::BOOL, "/sim/rendering/composite-viewer-enabled", false, "", nullptr},
+    {"enable-composite-viewer",          ParamType::NONE,    OptionType::BOOL, "/sim/rendering/composite-viewer-enabled", true,  "", nullptr},
+    {"developer",                        ParamType::BOOLEAN, OptionType::IGNORE | OptionType::BOOL, "", true,  "", nullptr },
+    {"disable-developer",                ParamType::NONE,    OptionType::IGNORE | OptionType::BOOL, "", false, "", nullptr },
+    {"enable-developer",                 ParamType::NONE,    OptionType::IGNORE | OptionType::BOOL, "", true,  "", nullptr },
+    {"distance-attenuation",             ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/distance-attenuation", true,  "", nullptr },
+    {"disable-distance-attenuation",     ParamType::NONE,    OptionType::BOOL, "/sim/rendering/distance-attenuation", false, "", nullptr },
+    {"enable-distance-attenuation",      ParamType::NONE,    OptionType::BOOL, "/sim/rendering/distance-attenuation", true,  "", nullptr },
+#ifdef ENABLE_IAX
+    {"fgcom",                            ParamType::BOOLEAN, OptionType::BOOL, "/sim/fgcom/enabled", true,  "", nullptr },
+    {"enable-fgcom",                     ParamType::NONE,    OptionType::BOOL, "/sim/fgcom/enabled", true,  "", nullptr },
+    {"disable-fgcom",                    ParamType::NONE,    OptionType::BOOL, "/sim/fgcom/enabled", false, "", nullptr },
+#endif
+    {"fpe",                              ParamType::BOOLEAN, OptionType::IGNORE, "", true,  "", nullptr },
+    {"disable-fpe",                      ParamType::NONE,    OptionType::IGNORE, "", false, "", nullptr },
+    {"enable-fpe",                       ParamType::NONE,    OptionType::IGNORE, "", true,  "", nullptr },
+    {"freeze",                           ParamType::BOOLEAN, OptionType::FUNC, "", false, "true",  fgOptFreeze },
+    {"disable-freeze",                   ParamType::NONE,    OptionType::FUNC, "", false, "false", fgOptFreeze },
+    {"enable-freeze",                    ParamType::NONE,    OptionType::FUNC, "", false, "true",  fgOptFreeze },
+    {"fuel-freeze",                      ParamType::BOOLEAN, OptionType::BOOL, "/sim/freeze/fuel", true,  "", nullptr },
+    {"disable-fuel-freeze",              ParamType::NONE,    OptionType::BOOL, "/sim/freeze/fuel", false, "", nullptr },
+    {"enable-fuel-freeze",               ParamType::NONE,    OptionType::BOOL, "/sim/freeze/fuel", true,  "", nullptr },
+    {"fullscreen",                       ParamType::BOOLEAN, OptionType::BOOL, "/sim/startup/fullscreen", true,  "", nullptr },
+    {"disable-fullscreen",               ParamType::NONE,    OptionType::BOOL, "/sim/startup/fullscreen", false, "", nullptr },
+    {"enable-fullscreen",                ParamType::NONE,    OptionType::BOOL, "/sim/startup/fullscreen", true,  "", nullptr },
+    {"gui",                              ParamType::BOOLEAN, OptionType::FUNC, "", false, "true",  fgOptGUI },
+    {"disable-gui",                      ParamType::NONE,    OptionType::FUNC, "", false, "false", fgOptGUI },
+    {"enable-gui",                       ParamType::NONE,    OptionType::FUNC, "", false, "true",  fgOptGUI },
+    {"hold-short",                       ParamType::BOOLEAN, OptionType::FUNC, "", false, "true",  fgOptHoldShort },
+    {"disable-hold-short",               ParamType::NONE,    OptionType::FUNC, "", false, "false", fgOptHoldShort },
+    {"enable-hold-short",                ParamType::NONE,    OptionType::FUNC, "", false, "true",  fgOptHoldShort },
+    {"hud",                              ParamType::BOOLEAN, OptionType::BOOL, "/sim/hud/visibility[1]", true,  "", nullptr },
+    {"disable-hud",                      ParamType::NONE,    OptionType::BOOL, "/sim/hud/visibility[1]", false, "", nullptr },
+    {"enable-hud",                       ParamType::NONE,    OptionType::BOOL, "/sim/hud/visibility[1]", true,  "", nullptr },
+    {"hud-3d",                           ParamType::BOOLEAN, OptionType::BOOL, "/sim/hud/enable3d[1]", true,  "", nullptr },
+    {"disable-hud-3d",                   ParamType::NONE,    OptionType::BOOL, "/sim/hud/enable3d[1]", false, "", nullptr },
+    {"enable-hud-3d",                    ParamType::NONE,    OptionType::BOOL, "/sim/hud/enable3d[1]", true,  "", nullptr },
+    {"horizon-effect",                   ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/horizon-effect", true,  "", nullptr },
+    {"disable-horizon-effect",           ParamType::NONE,    OptionType::BOOL, "/sim/rendering/horizon-effect", false, "", nullptr },
+    {"enable-horizon-effect",            ParamType::NONE,    OptionType::BOOL, "/sim/rendering/horizon-effect", true,  "", nullptr },
+    {"ignore-autosave",                  ParamType::BOOLEAN, OptionType::FUNC, "", false, "true",  fgOptIgnoreAutosave },
+    {"disable-ignore-autosave",          ParamType::NONE,    OptionType::FUNC, "", false, "false", fgOptIgnoreAutosave },
+    {"enable-ignore-autosave",           ParamType::NONE,    OptionType::FUNC, "", false, "true",  fgOptIgnoreAutosave },
+    {"launcher",                         ParamType::BOOLEAN, OptionType::IGNORE, "", true,  "", nullptr },
+    {"disable-launcher",                 ParamType::NONE,    OptionType::IGNORE, "", false, "", nullptr },
+    {"enable-launcher",                  ParamType::NONE,    OptionType::IGNORE, "", true,  "", nullptr },
+    {"load-tape-create-video",           ParamType::BOOLEAN, OptionType::BOOL, "/sim/startup/load-tape/create-video", true,  "", nullptr },
+    {"disable-load-tape-create-video",   ParamType::NONE,    OptionType::BOOL, "/sim/startup/load-tape/create-video", false, "", nullptr },
+    {"enable-load-tape-create-video",    ParamType::NONE,    OptionType::BOOL, "/sim/startup/load-tape/create-video", true,  "", nullptr },
+    {"mouse-pointer",                    ParamType::BOOLEAN, OptionType::BOOL, "/sim/startup/mouse-pointer", true,  "", nullptr },
+    {"disable-mouse-pointer",            ParamType::NONE,    OptionType::BOOL, "/sim/startup/mouse-pointer", false, "", nullptr },
+    {"enable-mouse-pointer",             ParamType::NONE,    OptionType::BOOL, "/sim/startup/mouse-pointer", true,  "", nullptr },
+    {"panel",                            ParamType::BOOLEAN, OptionType::BOOL, "/sim/panel/visibility", true,  "", nullptr },
+    {"disable-panel",                    ParamType::NONE,    OptionType::BOOL, "/sim/panel/visibility", false, "", nullptr },
+    {"enable-panel",                     ParamType::NONE,    OptionType::BOOL, "/sim/panel/visibility", true,  "", nullptr },
+    {"random-buildings",                 ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/random-buildings", true,  "", nullptr },
+    {"disable-random-buildings",         ParamType::NONE,    OptionType::BOOL, "/sim/rendering/random-buildings", false, "", nullptr },
+    {"enable-random-buildings",          ParamType::NONE,    OptionType::BOOL, "/sim/rendering/random-buildings", true,  "", nullptr },
+    {"random-objects",                   ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/random-objects", true,  "", nullptr },
+    {"disable-random-objects",           ParamType::NONE,    OptionType::BOOL, "/sim/rendering/random-objects", false, "", nullptr },
+    {"enable-random-objects",            ParamType::NONE,    OptionType::BOOL, "/sim/rendering/random-objects", true,  "", nullptr },
+    {"random-vegetation",                ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/random-vegetation", true,  "", nullptr },
+    {"disable-random-vegetation",        ParamType::NONE,    OptionType::BOOL, "/sim/rendering/random-vegetation", false, "", nullptr },
+    {"enable-random-vegetation",         ParamType::NONE,    OptionType::BOOL, "/sim/rendering/random-vegetation", true,  "", nullptr },
+    {"read-only",                        ParamType::BOOLEAN, OptionType::BOOL, "/sim/fghome-readonly", true,  "", nullptr },
+    {"disable-read-only",                ParamType::NONE,    OptionType::BOOL, "/sim/fghome-readonly", false, "", nullptr },
+    {"enable-read-only",                 ParamType::NONE,    OptionType::BOOL, "/sim/fghome-readonly", true,  "", nullptr },
+    {"real-weather-fetch",               ParamType::BOOLEAN, OptionType::BOOL, "/environment/realwx/enabled", true,  "", nullptr },
+    {"disable-real-weather-fetch",       ParamType::NONE,    OptionType::BOOL, "/environment/realwx/enabled", false, "", nullptr },
+    {"enable-real-weather-fetch",        ParamType::NONE,    OptionType::BOOL, "/environment/realwx/enabled", true,  "", nullptr },
+    {"restart-launcher",                 ParamType::BOOLEAN, OptionType::BOOL, "/sim/restart-launcher-on-exit", true,  "", nullptr },
+    {"disable-restart-launcher",         ParamType::NONE,    OptionType::BOOL, "/sim/restart-launcher-on-exit", false, "", nullptr },
+    {"enable-restart-launcher",          ParamType::NONE,    OptionType::BOOL, "/sim/restart-launcher-on-exit", true,  "", nullptr },
+    {"restore-defaults",                 ParamType::BOOLEAN, OptionType::BOOL, "/sim/startup/restore-defaults", true,  "", nullptr },
+    {"disable-restore-defaults",         ParamType::NONE,    OptionType::BOOL, "/sim/startup/restore-defaults", false, "", nullptr },
+    {"enable-restore-defaults",          ParamType::NONE,    OptionType::BOOL, "/sim/startup/restore-defaults", true,  "", nullptr },
+    {"save-on-exit",                     ParamType::BOOLEAN, OptionType::BOOL, "/sim/startup/save-on-exit", true,  "", nullptr },
+    {"disable-save-on-exit",             ParamType::NONE,    OptionType::BOOL, "/sim/startup/save-on-exit", false, "", nullptr },
+    {"enable-save-on-exit",              ParamType::NONE,    OptionType::BOOL, "/sim/startup/save-on-exit", true,  "", nullptr },
+    {"sentry",                           ParamType::BOOLEAN, OptionType::BOOL, "/sim/startup/sentry-crash-reporting-enabled", true,  "", nullptr },
+    {"enable-sentry",                    ParamType::NONE,    OptionType::BOOL, "/sim/startup/sentry-crash-reporting-enabled", true,  "", nullptr },
+    {"disable-sentry",                   ParamType::NONE,    OptionType::BOOL, "/sim/startup/sentry-crash-reporting-enabled", false, "", nullptr },
+    {"sound",                            ParamType::BOOLEAN, OptionType::BOOL, "/sim/sound/working", true,  "", nullptr },
+    {"disable-sound",                    ParamType::NONE,    OptionType::BOOL, "/sim/sound/working", false, "", nullptr },
+    {"enable-sound",                     ParamType::NONE,    OptionType::BOOL, "/sim/sound/working", true,  "", nullptr },
+    {"specular-highlight",               ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/specular-highlight", true,  "", nullptr },
+    {"disable-specular-highlight",       ParamType::NONE,    OptionType::BOOL, "/sim/rendering/specular-highlight", false, "", nullptr },
+    {"enable-specular-highlight",        ParamType::NONE,    OptionType::BOOL, "/sim/rendering/specular-highlight", true,  "", nullptr },
+    {"splash-screen",                    ParamType::BOOLEAN, OptionType::BOOL, "/sim/startup/splash-screen", true,  "", nullptr },
+    {"disable-splash-screen",            ParamType::NONE,    OptionType::BOOL, "/sim/startup/splash-screen", false, "", nullptr },
+    {"enable-splash-screen",             ParamType::NONE,    OptionType::BOOL, "/sim/startup/splash-screen", true,  "", nullptr },
+    {"terrasync",                        ParamType::BOOLEAN, OptionType::BOOL, "/sim/terrasync/enabled", true,  "", nullptr },
+    {"disable-terrasync",                ParamType::NONE,    OptionType::BOOL, "/sim/terrasync/enabled", false, "", nullptr },
+    {"enable-terrasync",                 ParamType::NONE,    OptionType::BOOL, "/sim/terrasync/enabled", true,  "", nullptr },
+    {"texture-cache",                    ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/texture-cache/cache-enabled", true,  "", nullptr },
+    {"enable-texture-cache",             ParamType::NONE,    OptionType::BOOL, "/sim/rendering/texture-cache/cache-enabled", true,  "", nullptr },
+    {"disable-texture-cache",            ParamType::NONE,    OptionType::BOOL, "/sim/rendering/texture-cache/cache-enabled", false, "", nullptr },
+#ifdef ENABLE_OSGXR
+    {"vr",                               ParamType::BOOLEAN, OptionType::BOOL, "/sim/vr/enabled", true,  "", nullptr },
+    {"disable-vr",                       ParamType::NONE,    OptionType::BOOL, "/sim/vr/enabled", false, "", nullptr },
+    {"enable-vr",                        ParamType::NONE,    OptionType::BOOL, "/sim/vr/enabled", true,  "", nullptr },
+#endif
+    {"wireframe",                        ParamType::BOOLEAN, OptionType::BOOL, "/sim/rendering/wireframe", true,  "", nullptr },
+    {"disable-wireframe",                ParamType::NONE,    OptionType::BOOL, "/sim/rendering/wireframe", false, "", nullptr },
+    {"enable-wireframe",                 ParamType::NONE,    OptionType::BOOL, "/sim/rendering/wireframe", true,  "", nullptr },
+};
+// clang-format on
 
 namespace flightgear
 {
@@ -2039,16 +2148,16 @@ namespace flightgear
 class OptionValue
 {
 public:
-  OptionValue(OptionDesc* d, const string& v) :
+  OptionValue(const OptionDesc* d, const string& v) :
     desc(d), value(v)
   {;}
 
-  OptionDesc* desc;
+  const OptionDesc* desc;
   string value;
 };
 
 typedef std::vector<OptionValue> OptionValueVec;
-typedef std::map<string, OptionDesc*> OptionDescDict;
+typedef std::map<string, const OptionDesc*> OptionDescDict;
 
 class Options::OptionsPrivate
 {
@@ -2086,7 +2195,7 @@ public:
         return it; // not found
     }
 
-  OptionDesc* findOption(const string& key) const
+  const OptionDesc* findOption(const string& key) const
   {
     OptionDescDict::const_iterator it = options.find(key);
     if (it == options.end()) {
@@ -2096,27 +2205,27 @@ public:
     return it->second;
   }
 
-  int processOption(OptionDesc* desc, const string& arg_value)
+  int processOption(const OptionDesc* desc, const string& arg_value)
   {
     if (!desc) {
       return FG_OPTIONS_OK; // tolerate marker options
     }
 
     switch ( desc->type & 0xffff ) {
-      case OPTION_BOOL:
-        if (arg_value == "0" || arg_value == "false") {
-            SG_LOG( SG_GENERAL, SG_ALERT, "Ignoring bool option '" << desc->option << "' because value is " << arg_value);
+      case OptionType::BOOL:
+        if ( desc->param_type != ParamType::NONE && !arg_value.empty() ) {
+            fgSetBool( desc->property, paramToBool(arg_value) );
         }
         else {
             fgSetBool( desc->property, desc->b_param );
         }
         break;
-      case OPTION_STRING:
-        if ( desc->has_param && !arg_value.empty() ) {
+      case OptionType::STRING:
+        if ( desc->param_type != ParamType::NONE && !arg_value.empty() ) {
           fgSetString( desc->property, arg_value.c_str() );
-        } else if ( !desc->has_param && arg_value.empty() ) {
+        } else if ( desc->param_type == ParamType::NONE && arg_value.empty() ) {
           fgSetString( desc->property, desc->s_param );
-        } else if ( desc->has_param ) {
+        } else if ( desc->param_type != ParamType::NONE ) {
           SG_LOG( SG_GENERAL, SG_ALERT, "Option '" << desc->option << "' needs a parameter" );
           return FG_OPTIONS_ERROR;
         } else {
@@ -2124,7 +2233,7 @@ public:
           return FG_OPTIONS_ERROR;
         }
         break;
-      case OPTION_DOUBLE:
+      case OptionType::DOUBLE:
         if ( !arg_value.empty() ) {
           fgSetDouble( desc->property, atof( arg_value ) );
         } else {
@@ -2132,7 +2241,7 @@ public:
           return FG_OPTIONS_ERROR;
         }
         break;
-      case OPTION_INT:
+      case OptionType::INT:
         if ( !arg_value.empty() ) {
           fgSetInt( desc->property, atoi( arg_value ) );
         } else {
@@ -2140,13 +2249,13 @@ public:
           return FG_OPTIONS_ERROR;
         }
         break;
-      case OPTION_CHANNEL:
+      case OptionType::CHANNEL:
         // XXX return value of add_channel should be checked?
-        if ( desc->has_param && !arg_value.empty() ) {
+        if ( desc->param_type != ParamType::NONE && !arg_value.empty() ) {
           add_channel( desc->option, arg_value );
-        } else if ( !desc->has_param && arg_value.empty() ) {
+        } else if ( desc->param_type == ParamType::NONE && arg_value.empty() ) {
           add_channel( desc->option, desc->s_param );
-        } else if ( desc->has_param ) {
+        } else if ( desc->param_type != ParamType::NONE ) {
           SG_LOG( SG_GENERAL, SG_ALERT, "Option '" << desc->option << "' needs a parameter" );
           return FG_OPTIONS_ERROR;
         } else {
@@ -2154,12 +2263,15 @@ public:
           return FG_OPTIONS_ERROR;
         }
         break;
-      case OPTION_FUNC:
-        if ( desc->has_param && !arg_value.empty() ) {
+      case OptionType::FUNC:
+        if ( desc->param_type != ParamType::NONE && !arg_value.empty() ) {
           return desc->func( arg_value.c_str() );
-        } else if ( !desc->has_param && arg_value.empty() ) {
+        } else if ( arg_value.empty() && strlen(desc->s_param) ) {
+          // It doesn't matter if the option requires a parameter or not,
+          // always as there is no parameter but s_param is set, then call the function with s_param.
           return desc->func( desc->s_param );
-        } else if ( desc->has_param ) {
+        } else if ( desc->param_type != ParamType::NONE ) {
+          // The option requires a parameter, but arg_value and s_param are empty.
           SG_LOG( SG_GENERAL, SG_ALERT, "Option '" << desc->option << "' needs a parameter" );
           return FG_OPTIONS_ERROR;
         }
@@ -2167,7 +2279,7 @@ public:
         SG_LOG( SG_GENERAL, SG_ALERT, "Option '" << desc->option << "' does not have a parameter" );
         return FG_OPTIONS_ERROR;
 
-      case OPTION_IGNORE:
+      case OptionType::IGNORE:
         break;
     }
 
@@ -2261,11 +2373,9 @@ Options::Options() :
   p->shouldLoadDefaultConfig = true;
 
 // build option map
-  OptionDesc *desc = &fgOptionArray[ 0 ];
-  while ( desc->option != 0 ) {
+  for (auto it = fgOptionArray.begin(); it != fgOptionArray.end(); ++it) {
     // REVIEW: Memory Leak - 15,768 bytes in 219 blocks are still reachable
-    p->options[ desc->option ] = desc;
-    ++desc;
+    p->options[ it->option ] = it;
   }
 }
 
@@ -2277,6 +2387,8 @@ OptionResult Options::init(int argc, char** argv, const SGPath& appDataPath)
 {
 // first, process the command line
   bool inOptions = true;
+  simgear::optional<std::string> value;
+
   for (int i=1; i<argc; ++i) {
       // important : on first run after the Gatekeeper quarantine flag is
       // cleared, launchd passes us a null argument here. Avoid dying in
@@ -2288,11 +2400,24 @@ OptionResult Options::init(int argc, char** argv, const SGPath& appDataPath)
     if (inOptions && (argv[i][0] == '-')) {
       if (strcmp(argv[i], "--") == 0) { // end of options delimiter
         inOptions = false;
+        value = {};
         continue;
       }
 
-      int result = parseOption(argv[i], /* fromConfigFile */ false);
+      const string currentOption(argv[i]);
+      // Get the next string from the list if it's a value for current option
+      if (currentOption.find("=") == string::npos) {
+          value = getValueFromNextParam(i, argc, argv);
+      }
+      else { // we have the = sign so we have the value in one string
+          value = {};
+      }
+
+      int result = parseOption(currentOption, value, /* fromConfigFile */ false);
       processArgResult(result);
+    } else if (value.has_value()) {
+      // Skip the value for previous option
+      value = {};
     } else {
     // XML properties file
         SGPath f = SGPath::fromUtf8(argv[i]);
@@ -2381,6 +2506,69 @@ OptionResult Options::init(int argc, char** argv, const SGPath& appDataPath)
   }
 
   return FG_OPTIONS_OK;
+}
+
+static int
+getOptionParamType(string option)
+{
+    if (simgear::strutils::starts_with(option, "--prop:") ||
+        simgear::strutils::starts_with(option, "prop:")
+    ) {
+        // The --prop option comes with the whole string with the property name,
+        // we need to truncate it only to the option name.
+        option = "prop";
+    }
+
+    const bool withDashes = simgear::strutils::starts_with(option, "--");
+    const string dashes("--");
+
+    const auto desc = std::find_if(fgOptionArray.begin(), fgOptionArray.end(), [&withDashes, &dashes, &option](const OptionDesc& opDesc) {
+        return (withDashes && dashes + opDesc.option == option) || (!withDashes && opDesc.option == option);
+    });
+
+    if (desc != fgOptionArray.end()) {
+        return desc->param_type;
+    }
+
+    return ParamType::NONE;
+}
+
+simgear::optional<std::string> Options::getValueFromNextParam(int index, int argc, char** argv)
+{
+    if (index + 1 >= argc) {
+        // No more arguments, return empty value
+        return {};
+    }
+
+    const string currentOption(argv[index]);
+
+    // Get param type of current option
+    const int paramType = getOptionParamType(currentOption);
+
+    if (paramType == ParamType::NONE) {
+        // We know that the option does not take parameters so return empty value
+        return {};
+    }
+
+    const string value(argv[index + 1]);
+
+    if (paramType == ParamType::BOOLEAN && simgear::strutils::is_bool(value)) {
+        // We know that the option takes a bool parameter and the value is of
+        // type boolean, so assign a value to the option
+        return value;
+    }
+
+    if (simgear::strutils::starts_with(value, "-")) {
+        // It's not a value but an option (including -c, -h, -v, -psn),
+        // return empty value
+        return {};
+    }
+
+    if (paramType == ParamType::REGULAR) {
+        return value;
+    }
+
+    return {};
 }
 
 void Options::initPaths()
@@ -2526,7 +2714,18 @@ void Options::readConfig(const SGPath& path)
         break;
     line = line.substr( 0, i );
 
-    if ( parseOption(line, /* fromConfigFile */ true) == FG_OPTIONS_ERROR ) {
+    simgear::optional<std::string> value;
+    const size_t space = line.find(' ');
+    const size_t equal = line.find('=');
+    if (space != string::npos && space < equal) {
+      // We assume that the value is separated by a space from the option name, like:
+      // --metar XXXX 280900Z 28007KT 9999 20/16 Q1010 instead of
+      // --metar=XXXX 280900Z 28007KT 9999 20/16 Q1010
+      value = line.substr(space + 1);
+      line = line.substr(0, space);
+    }
+
+    if ( parseOption(line, value, /* fromConfigFile */ true) == FG_OPTIONS_ERROR ) {
       cerr << endl << "Config file parse error: " << path << " '"
       << line << "'" << endl;
 	    p->showHelp = true;
@@ -2537,58 +2736,76 @@ void Options::readConfig(const SGPath& path)
   p->insertGroupMarker(); // each config file is a group
 }
 
-int Options::parseOption(const string& s, bool fromConfigFile)
+bool Options::paramToBool(const std::string& param)
+{
+    if (simgear::strutils::is_bool(param)) {
+        return simgear::strutils::to_bool(param);
+    }
+
+    return true;
+}
+
+/**
+ * @param optional<string> val Contains a value when the user has specified a value for
+ *                   the option separated by a space instead of the '=' character.
+ *                   Otherwise val has no value.
+ */
+int Options::parseOption(const string& s, const simgear::optional<std::string>& val, bool fromConfigFile)
 {
   if ((s == "--help") || (s=="-h")) {
     return FG_OPTIONS_HELP;
   } else if ( (s == "--verbose") || (s == "-v") ) {
     // verbose help/usage request
     return FG_OPTIONS_VERBOSE_HELP;
-  } else if ((s == "--console") || (s == "-c")) {
-      fgOptConsole(nullptr);
-	  return FG_OPTIONS_OK;
-  } else if (s.find("-psn") == 0) {
+  } else if (simgear::strutils::starts_with(s, "--console") || s == "-c") {
+    return fgOptConsole(getValueForBooleanOption(s, "--console", val).c_str());
+  } else if (simgear::strutils::starts_with(s, "-psn")) {
     // on Mac, when launched from the GUI, we are passed the ProcessSerialNumber
     // as an argument (and no others). Silently ignore the argument here.
     return FG_OPTIONS_OK;
-  } else if ( s.find( "--show-aircraft") == 0) {
-    return(FG_OPTIONS_SHOW_AIRCRAFT);
-  } else if ( s.find( "--show-sound-devices") == 0) {
-    return(FG_OPTIONS_SHOW_SOUND_DEVICES);
-  } else if ( s.find( "--no-default-config") == 0) {
-    return FG_OPTIONS_NO_DEFAULT_CONFIG;
-  } else if ( s.find( "--prop:") == 0) {
+  } else if (simgear::strutils::starts_with(s, "--show-aircraft")) {
+    return paramToBool(getValueForBooleanOption(s, "--show-aircraft", val))
+      ? FG_OPTIONS_SHOW_AIRCRAFT
+      : FG_OPTIONS_OK;
+  } else if (simgear::strutils::starts_with(s, "--show-sound-devices")) {
+    return paramToBool(getValueForBooleanOption(s, "--show-sound-devices", val))
+      ? FG_OPTIONS_SHOW_SOUND_DEVICES
+      : FG_OPTIONS_OK;
+  } else if (simgear::strutils::starts_with(s, "--no-default-config")) {
+    return paramToBool(getValueForBooleanOption(s, "--no-default-config", val))
+      ? FG_OPTIONS_NO_DEFAULT_CONFIG
+      : FG_OPTIONS_OK;
+  } else if (simgear::strutils::starts_with(s, "--prop:")) {
     // property setting has a slightly different syntax, so fudge things
-    OptionDesc* desc = p->findOption("prop");
-    if (s.find("=", 7) == string::npos) { // no equals token
-      SG_LOG(SG_GENERAL, SG_ALERT, "malformed property option:" << s);
-      return FG_OPTIONS_ERROR;
+    const OptionDesc* desc = p->findOption("prop");
+
+    const size_t optLen = strlen("--prop:");
+
+    if (s.find('=', optLen) != string::npos) {
+      p->values.push_back(OptionValue(desc, s.substr(optLen)));
+      return FG_OPTIONS_OK;
     }
 
-    p->values.push_back(OptionValue(desc, s.substr(7)));
-    return FG_OPTIONS_OK;
-  } else if ( s.find("--config=") == 0) {
-    SGPath path = s.substr(9);
-    if (path.extension() == "xml") {
-        p->propertyFiles.push_back(path);
-    } else if (fromConfigFile) {
-      flightgear::fatalMessageBoxThenExit(
-        "FlightGear",
-        "Invalid use of the --config option.",
-        "Sorry, it is currently not supported to load a configuration file "
-        "using --config from another configuration file.\n\n"
-        "Note: this does not apply to loading of XML PropertyList files "
-        "with --config.");
-    } else {                // the --config option comes from the command line
-        p->configFiles.push_back(path);
+    if (val.has_value()) {
+      p->values.push_back(OptionValue(desc, s.substr(optLen) + "=" + val.value()));
+      return FG_OPTIONS_OK;
     }
 
-    return FG_OPTIONS_OK;
-  } else if ( s.find( "--" ) == 0 ) {
+    SG_LOG(SG_GENERAL, SG_ALERT, "malformed property option: " << s);
+    return FG_OPTIONS_ERROR;
+  } else if (simgear::strutils::starts_with(s, "--config=")) {
+    return parseConfigOption(s.substr(9), fromConfigFile);
+  } else if (simgear::strutils::starts_with(s, "--config") && val.has_value() ) {
+    return parseConfigOption(val.value(), fromConfigFile);
+  } else if (simgear::strutils::starts_with(s, "--")) {
     size_t eqPos = s.find( '=' );
     string key, value;
     if (eqPos == string::npos) {
       key = s.substr(2);
+
+      if (val.has_value()) {
+        value = val.value();
+      }
     } else {
       key = s.substr( 2, eqPos - 2 );
       value = s.substr( eqPos + 1);
@@ -2599,6 +2816,43 @@ int Options::parseOption(const string& s, bool fromConfigFile)
       flightgear::modalMessageBox("Unknown option", "Unknown command-line option: " + s);
     return FG_OPTIONS_ERROR;
   }
+}
+
+string Options::getValueForBooleanOption(const string& str, const string& option, const simgear::optional<std::string>& value)
+{
+    if (simgear::strutils::starts_with(str, option + "=")) {
+        // We have option with "=", get value after "=" sign
+        return str.substr((option + "=").size());
+    }
+    else if (value.has_value()) {
+        // Get value after " " sign
+        return value.value();
+    }
+
+    // The option has no value, return "true" as default
+    return "true";
+}
+
+int Options::parseConfigOption(const SGPath &path, bool fromConfigFile)
+{
+    if (path.extension() == "xml") {
+        p->propertyFiles.push_back(path);
+    }
+    else if (fromConfigFile) {
+        flightgear::fatalMessageBoxThenExit(
+            "FlightGear",
+            "Invalid use of the --config option.",
+            "Sorry, it is currently not supported to load a configuration file "
+            "using --config from another configuration file.\n\n"
+            "Note: this does not apply to loading of XML PropertyList files "
+            "with --config."
+        );
+    }
+    else { // the --config option comes from the command line
+        p->configFiles.push_back(path);
+    }
+
+    return FG_OPTIONS_OK;
 }
 
 int Options::addOption(const string &key, const string &value)
@@ -2620,7 +2874,7 @@ int Options::addOption(const string &key, const string &value)
         return FG_OPTIONS_OK;
     }
 
-  OptionDesc* desc = p->findOption(key);
+  const OptionDesc* desc = p->findOption(key);
   if (!desc) {
     flightgear::modalMessageBox("Unknown option", "Unknown command-line option: " + key);
     return FG_OPTIONS_ERROR;
@@ -2640,7 +2894,7 @@ int Options::addOption(const string &key, const string &value)
 
 int Options::setOption(const string &key, const string &value)
 {
-    OptionDesc* desc = p->findOption(key);
+    const OptionDesc* desc = p->findOption(key);
     if (!desc) {
         flightgear::modalMessageBox("Unknown option", "Unknown command-line option: " + key);
         return FG_OPTIONS_ERROR;
@@ -2668,6 +2922,10 @@ void Options::clearOption(const std::string& key)
 
 bool Options::isOptionSet(const string &key) const
 {
+  if (getOptionParamType(key) == ParamType::BOOLEAN) {
+    return isBoolOptionEnable(key);
+  }
+
   OptionValueVec::const_iterator it = p->findValue(key);
   return (it != p->values.end());
 }
@@ -2697,6 +2955,46 @@ string_list Options::valuesForOption(const std::string& key) const
   }
 
   return result;
+}
+
+simgear::optional<bool> Options::checkBoolOptionSet(const string &key) const
+{
+    if (isOptionSet("enable-" + key)) {
+        return true; // explicitly enabled
+    }
+
+    if (isOptionSet("disable-" + key)) {
+        return false; // explicitly disabled
+    }
+
+    OptionValueVec::const_iterator it = p->findValue(key);
+    if (it == p->values.end()) {
+        return {}; // option not found
+    }
+
+    if (it->value.empty()) {
+        // The user used a boolean option but without passing a value, such as e.g. `--fullscreen`.
+        // Then return the enabled flag.
+        return true; // enabled by default
+    }
+
+    // The user used a boolean option with a passed value, such as `--fullscreen false`.
+    // Convert the value to boolean.
+    return paramToBool(it->value)
+        ? true   // explicitly enabled
+        : false; // explicitly disabled
+}
+
+bool Options::isBoolOptionEnable(const string &key) const
+{
+    const simgear::optional<bool> value = checkBoolOptionSet(key);
+    return value.has_value() && value.value() == true;
+}
+
+bool Options::isBoolOptionDisable(const string &key) const
+{
+    const simgear::optional<bool> value = checkBoolOptionSet(key);
+    return value.has_value() && value.value() == false;
 }
 
 SGPath defaultDownloadDir()
@@ -3288,6 +3586,71 @@ bool Options::checkForArg(int argc, char* argv[], const char* checkArg)
     return false;
 }
 
+simgear::optional<bool> Options::checkForBoolArg(int argc, char* argv[], const string& checkArg)
+{
+    for (int i = 0; i < argc; ++i) {
+        char* arg = argv[i];
+        if (arg == nullptr) {
+            continue;
+        }
+
+        if (*arg != '-') { // we only care about args with a leading hypen
+            continue;
+        }
+
+        arg++;
+        if (*arg == '-') { // skip double hypens
+            arg++;
+        }
+
+        string option(arg);
+
+        if (option == "enable-" + checkArg) {
+            return true; // explicitly enabled
+        }
+
+        if (option == "disable-" + checkArg) {
+            return false; // explicitly disabled
+        }
+
+        simgear::optional<std::string> value;
+        const size_t equal = option.find("=");
+        if (equal == string::npos) {
+            value = getValueFromNextParam(i, argc, argv);
+        }
+        else {
+            value = option.substr(equal + 1);
+            option = option.substr(0, equal);
+        }
+
+        if (option != checkArg) {
+            continue;
+        }
+
+        if (!value.has_value()) {
+            return true; // enabled by default
+        }
+
+        return paramToBool(value.value())
+            ? true   // explicitly enabled
+            : false; // explicitly disabled
+    }
+
+    return {}; // option not found
+}
+
+bool Options::checkForArgEnable(int argc, char* argv[], const string& checkArg)
+{
+    const simgear::optional<bool> value = checkForBoolArg(argc, argv, checkArg);
+    return value.has_value() && value.value() == true;
+}
+
+bool Options::checkForArgDisable(int argc, char* argv[], const string& checkArg)
+{
+    const simgear::optional<bool> value = checkForBoolArg(argc, argv, checkArg);
+    return value.has_value() && value.value() == false;
+}
+
 std::string Options::getArgValue(int argc, char* argv[], const char* checkArg)
 {
     const auto len = strlen(checkArg);
@@ -3299,8 +3662,12 @@ std::string Options::getArgValue(int argc, char* argv[], const char* checkArg)
 
         if (strncmp(arg, checkArg, len) == 0) {
             const auto alen = strlen(arg);
-            if ((alen - len) < 2)
-                return {}; // no value after the =, or missing = entirely
+            if ((alen - len) < 2) {
+                // no value after the =, or missing = entirely
+                simgear::optional<std::string> value = getValueFromNextParam(i, argc, argv);
+                return value.has_value() ? value.value() : "";
+            }
+
             return std::string(arg + len + 1);
         }
     } // of args iteration

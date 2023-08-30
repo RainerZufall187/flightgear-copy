@@ -692,7 +692,7 @@ bool runLauncherDialog()
 
     LauncherMainWindow dlg(false);
 
-    if (options->isOptionSet("enable-fullscreen")) {
+    if (options->isOptionSet("fullscreen")) {
         dlg.showFullScreen();
     } else {
         dlg.setVisible(true);

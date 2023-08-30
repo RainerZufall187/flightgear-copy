@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 
+#include <simgear/misc/simgear_optional.hxx>
 #include <simgear/misc/strutils.hxx>
 
 // forward decls
@@ -98,11 +99,46 @@ public:
   string_list valuesForOption(const std::string& key) const;
   
   /**
-    * check if a particular option has been set (so far)
+    * Check if a particular option has been set (so far).
+    * For boolean option please use isBoolOptionEnable or isBoolOptionDisable.
     */
   bool isOptionSet(const std::string& key) const;
   
-  
+  /**
+   * Check if the user has specified a given boolean option.
+   * We need to return 3 states:
+   * *  1 - the user has explicitly enabled the option,
+   * *  0 - the user has explicitly disabled the option,
+   * * -1 - the user has not used the specified option at all.
+   *
+   * User provided options =>  Using the method                  =>  Result
+   * --enable-fullscreen   =>  checkBoolOptionSet("fullscreen")  =>  true
+   * --disable-fullscreen  =>  checkBoolOptionSet("fullscreen")  =>  false
+   * --fullscreen          =>  checkBoolOptionSet("fullscreen")  =>  true
+   * --fullscreen true     =>  checkBoolOptionSet("fullscreen")  =>  true
+   * --fullscreen false    =>  checkBoolOptionSet("fullscreen")  =>  false
+   * --fullscreen 1        =>  checkBoolOptionSet("fullscreen")  =>  true
+   * --fullscreen 0        =>  checkBoolOptionSet("fullscreen")  =>  false
+   * --fullscreen yes      =>  checkBoolOptionSet("fullscreen")  =>  true
+   * --fullscreen no       =>  checkBoolOptionSet("fullscreen")  =>  false
+   * {none of the above}   =>  checkBoolOptionSet("fullscreen")  =>  no value
+   */
+  simgear::optional<bool> checkBoolOptionSet(const std::string& key) const;
+
+  /**
+   * An overlay on checkBoolOptionSet, except that when the user has not used
+   * the option at all then false is returned.
+   * For non-boolean option please use isOptionSet.
+   */
+  bool isBoolOptionEnable(const std::string &key) const;
+
+  /**
+   * An overlay on checkBoolOptionSet, to check whether user used the option
+   * with explicitly disable it.
+   * For non-boolean option please use isOptionSet.
+   */
+  bool isBoolOptionDisable(const std::string &key) const;
+
   /**
     * set an option value, assuming it is not already set (or multiple values
     * are permitted)
@@ -150,11 +186,46 @@ public:
     void setShouldLoadDefaultConfig(bool load);
 
   /**
-   * check if the arguments array contains a particular string (with a '--' or
+   * Check if the arguments array contains a particular string (with a '--' or
    * '-' prefix).
-   * Used by early startup code before Options object is created
+   * Used by early startup code before Options object is created.
+   * For boolean option please use checkForBoolArg or checkForArgEnable/checkForArgDisable.
    */
   static bool checkForArg(int argc, char* argv[], const char* arg);
+
+  /**
+   * Check if the user has specified a given boolean option.
+   * Used by early startup code before Options object is created.
+   * We need to return 3 states:
+   * *  1 - the user has explicitly enabled the option,
+   * *  0 - the user has explicitly disabled the option,
+   * * -1 - the user has not used the specified option at all.
+   *
+   * User provided options =>  Using the method                           =>  Result
+   * --enable-fullscreen   =>  checkForBoolArg(argc, argv, "fullscreen")  =>  true
+   * --disable-fullscreen  =>  checkForBoolArg(argc, argv, "fullscreen")  =>  false
+   * --fullscreen          =>  checkForBoolArg(argc, argv, "fullscreen")  =>  true
+   * --fullscreen true     =>  checkForBoolArg(argc, argv, "fullscreen")  =>  true
+   * --fullscreen false    =>  checkForBoolArg(argc, argv, "fullscreen")  =>  false
+   * --fullscreen 1        =>  checkForBoolArg(argc, argv, "fullscreen")  =>  true
+   * --fullscreen 0        =>  checkForBoolArg(argc, argv, "fullscreen")  =>  false
+   * --fullscreen yes      =>  checkForBoolArg(argc, argv, "fullscreen")  =>  true
+   * --fullscreen no       =>  checkForBoolArg(argc, argv, "fullscreen")  =>  false
+   * {none of the above}   =>  checkForBoolArg(argc, argv, "fullscreen")  =>  no value
+   */
+  static simgear::optional<bool> checkForBoolArg(int argc, char* argv[], const std::string& checkArg);
+
+  /**
+   * Return true when user explicitly enabled boolean option, otherwise false.
+   * Used by early startup code before Options object is created.
+   */
+  static bool checkForArgEnable(int argc, char* argv[], const std::string& checkArg);
+
+  /**
+   * Return true when user explicitly disabled boolean option by set false value.
+   * Used by early startup code before Options object is created.
+   */
+  static bool checkForArgDisable(int argc, char* argv[], const std::string& checkArg);
 
   /**
    * @brief getArgValue - get the value of an argument if it exists, or
@@ -182,6 +253,12 @@ public:
      */
       SGPath actualDownloadDir();
 
+      /**
+       * Convert string to bool for boolean options. When param cannot be recognized as bool then
+       * the true is returned.
+       */
+      static bool paramToBool(const std::string& param);
+
   private:
       void showUsage() const;
       void showVersion() const;
@@ -191,7 +268,18 @@ public:
 
       // The 'fromConfigFile' parameter indicates whether the option comes from a
       // config file or directly from the command line.
-      int parseOption(const std::string& s, bool fromConfigFile);
+      int parseOption(const std::string& s, const simgear::optional<std::string>& val, bool fromConfigFile);
+
+      int parseConfigOption(const SGPath &path, bool fromConfigFile);
+
+      std::string getValueForBooleanOption(const std::string& str, const std::string& option, const simgear::optional<std::string>& value);
+
+      /**
+       * Since option values can be separated by a space, we check what is in
+       * the next parameter and return a string value if the current option
+       * requires a value and the value does not start with a "-" character.
+       */
+      static simgear::optional<std::string> getValueFromNextParam(int index, int argc, char** argv);
 
       void processArgResult(int result);
 

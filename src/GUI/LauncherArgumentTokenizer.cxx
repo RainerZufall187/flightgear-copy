@@ -48,10 +48,10 @@ void LauncherArgumentTokenizer::tokenize(QString in)
             break;
 
         case Key:
-            if (c == QChar('=')) {
+            if (c == QChar('=') || (c.isSpace() && nc != QChar('-'))) {
                 state = Value;
                 value.clear();
-            } else if (c.isSpace()) {
+            } else if (c.isSpace() && nc == QChar('-')) {
                 state = Start;
                 result.emplace_back(key);
             } else {

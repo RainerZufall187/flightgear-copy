@@ -275,7 +275,7 @@ int main ( int argc, char **argv )
     // we don't want to accidently show a GUI box and block startup in
     // non_GUI setups, so check this value early here, before options are
     // processed
-    const bool headless = flightgear::Options::checkForArg(argc, argv, "disable-gui");
+    const bool headless = flightgear::Options::checkForArgDisable(argc, argv, "gui");
     flightgear::setHeadlessMode(headless);
 
 #ifdef ENABLE_SIMD
@@ -312,7 +312,7 @@ int main ( int argc, char **argv )
   _bootstrap_OSInit = 0;
     
 #if defined(HAVE_SENTRY)
-  const bool noSentry = flightgear::Options::checkForArg(argc, argv, "disable-sentry");
+  const bool noSentry = flightgear::Options::checkForArgDisable(argc, argv, "sentry");
   if (!noSentry) {
       flightgear::initSentry();
   }
@@ -328,7 +328,7 @@ int main ( int argc, char **argv )
     }
 #endif
 
-    initFPE(flightgear::Options::checkForArg(argc, argv, "enable-fpe"));
+    initFPE(flightgear::Options::checkForArgEnable(argc, argv, "fpe"));
 
     // pick up all user locale settings, but force C locale for numerical/sorting
     // conversions because we have lots of code which assumes standard
