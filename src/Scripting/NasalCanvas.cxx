@@ -24,6 +24,7 @@
 #include <Canvas/canvas_mgr.hxx>
 #include <Canvas/gui_mgr.hxx>
 #include <Main/globals.hxx>
+#include <Scripting/NasalCondition.hxx> // for NasalBinding
 #include <Scripting/NasalSys.hxx>
 
 #include <osgGA/GUIEventAdapter>
@@ -34,6 +35,7 @@
 #include <simgear/canvas/CanvasWindow.hxx>
 #include <simgear/canvas/elements/CanvasElement.hxx>
 #include <simgear/canvas/elements/CanvasText.hxx>
+#include <simgear/canvas/events/CanvasKeyBinding.hxx>
 #include <simgear/canvas/events/CustomEvent.hxx>
 #include <simgear/canvas/events/KeyboardEvent.hxx>
 #include <simgear/canvas/events/MouseEvent.hxx>
@@ -62,6 +64,7 @@ typedef nasal::Ghost<sc::CustomEventPtr> NasalCustomEvent;
 typedef nasal::Ghost<sc::DeviceEventPtr> NasalDeviceEvent;
 typedef nasal::Ghost<sc::KeyboardEventPtr> NasalKeyboardEvent;
 typedef nasal::Ghost<sc::MouseEventPtr> NasalMouseEvent;
+typedef nasal::Ghost<sc::KeyBindingRef> NasalKeyBinding;
 
 struct CustomEventDetailWrapper;
 typedef SGSharedPtr<CustomEventDetailWrapper> CustomEventDetailPtr;
@@ -208,6 +211,20 @@ static naRef f_groupCreateChild(sc::Group& group, const nasal::CallContext& ctx)
 static sc::ElementPtr f_groupGetChild(sc::Group& group, SGPropertyNode* node)
 {
   return group.getChild(node);
+}
+
+static naRef f_groupAddKeyBinding(sc::Group& group, const nasal::CallContext& ctx)
+{
+  auto keyBinding = ctx.requireArg<sc::KeyBindingRef>(0);
+  group.getOrCreateFocusScope()->addKeyBinding(keyBinding);
+  return naNil();
+}
+
+static naRef f_windowAddKeyBinding(sc::Window& window, const nasal::CallContext& ctx)
+{
+  auto keyBinding = ctx.requireArg<sc::KeyBindingRef>(0);
+  window.focusScope()->addKeyBinding(keyBinding);
+  return naNil();
 }
 
 static void propElementSetData( simgear::PropertyBasedElement& el,
@@ -478,6 +495,18 @@ static naRef f_newSpacerItem(const nasal::CallContext& ctx)
     return ctx.to_nasal(new sc::SpacerItem);
 }
 
+static naRef f_keyBindingAddBinding(sc::KeyBinding& keyBinding, const nasal::CallContext& ctx)
+{
+    auto cb = ctx.requireArg<NasalBinding::NasalCallback>(0);
+    keyBinding.addBinding(new NasalBinding{cb});
+    return naNil();
+}
+
+static naRef f_newKeyBinding(const nasal::CallContext& ctx)
+{
+    return ctx.to_nasal(new sc::KeyBinding);
+}
+
 naRef initNasalCanvas(naRef globals, naContext c)
 {
   nasal::Hash globals_module(globals, c),
@@ -537,6 +566,15 @@ naRef initNasalCanvas(naRef globals, naContext c)
     .member("buttons", &sc::MouseEvent::getButtonMask)
     .member("click_count", &sc::MouseEvent::getCurrentClickCount);
 
+
+  NasalKeyBinding::init("canvas.KeyBinding")
+      .member("key", &sc::KeyBinding::key, &sc::KeyBinding::setKey)
+      .member("keyCode", &sc::KeyBinding::keyCode, &sc::KeyBinding::setKeyCode)
+      .member("modifiers", &sc::KeyBinding::modifiers, &sc::KeyBinding::setModifiers)
+      .method("addBinding", &f_keyBindingAddBinding);
+  canvas_module.createHash("KeyBinding")
+      .set("new", &f_newKeyBinding);
+
   //----------------------------------------------------------------------------
   // Canvas & elements
 
@@ -578,10 +616,11 @@ naRef initNasalCanvas(naRef globals, naContext c)
       .method("localToCanvas", &sc::Element::localToCanvas);
 
   NasalGroup::init("canvas.Group")
-    .bases<NasalElement>()
-    .method("_createChild", &f_groupCreateChild)
-    .method( "_getChild", &f_groupGetChild)
-    .method("_getElementById", &sc::Group::getElementById);
+      .bases<NasalElement>()
+      .method("_createChild", &f_groupCreateChild)
+      .method("_getChild", &f_groupGetChild)
+      .method("_getElementById", &sc::Group::getElementById)
+      .method("addKeyBinding", &f_groupAddKeyBinding);
   NasalText::init("canvas.Text")
     .bases<NasalElement>()
     .method("heightForWidth", &sc::Text::heightForWidth)
@@ -685,7 +724,8 @@ naRef initNasalCanvas(naRef globals, naContext c)
         .member("_node_ghost", &elementGetNode<sc::Window>)
         .method("_getCanvasDecoration", &sc::Window::getCanvasDecoration)
         .method("setLayout", &sc::Window::setLayout)
-        .method("toScreenPosition", &sc::Window::toScreenPosition);
+        .method("toScreenPosition", &sc::Window::toScreenPosition)
+        .method("addKeyBinding", &f_windowAddKeyBinding);
 
     canvas_module.set("_newWindowGhost", f_createWindow);
     canvas_module.set("_getDesktopGhost", f_getDesktop);
