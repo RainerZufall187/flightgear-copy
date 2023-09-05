@@ -11,9 +11,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 
 #include <Autopilot/autopilot.hxx>
-#include <Autopilot/inputvalue.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/globals.hxx>
+#include <simgear/misc/inputvalue.hxx>
 
 
 #include <simgear/math/sg_random.hxx>
@@ -59,7 +59,7 @@ void InputValueTests::testPropertyPath()
     fgSetString("/test/altitude-ft-node-path", "/test/a");
     fgSetDouble("/test/a", 0.5);
 
-    InputValue_ptr valueA = new InputValue(*globals->get_props(), *config);
+    simgear::Value_ptr valueA = new simgear::Value(*globals->get_props(), *config);
 
     CPPUNIT_ASSERT(valueA->is_enabled());
     // check value is not written back
@@ -90,7 +90,7 @@ void InputValueTests::testPropertyPath()
                                 </PropertyList>
                                 )");
 
-    InputValue_ptr valueB = new InputValue(*globals->get_props(), *config2);
+    simgear::Value_ptr valueB = new simgear::Value(*globals->get_props(), *config2);
     CPPUNIT_ASSERT(!valueB->is_enabled());
     CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, valueB->get_value(), 0.001);
     
