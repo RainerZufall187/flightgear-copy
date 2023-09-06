@@ -52,6 +52,24 @@ void SimgearPropsTests::testAliasLeak()
     alias->alias("test-node", false);
 }
 
+
+void SimgearPropsTests::testDoubleAlias()
+{
+    // Declarations.
+    SGPropertyNode* alias;
+
+    // Create a new node.
+    tree->getNode("test-node", true);
+    tree->getNode("another-node", true);
+
+    // Aliased node.
+    alias = tree->getNode("test-alias", true);
+
+    CPPUNIT_ASSERT(alias->alias("test-node", false));
+    CPPUNIT_ASSERT(!alias->alias("another-node", false));
+}
+
+
 void SimgearPropsTests::testPropsCopyIf()
 {
 // dummy property tree structure
