@@ -292,3 +292,45 @@ void NasalSysTests::testKeywordArgInHash()
     )");
     CPPUNIT_ASSERT(ok);
 }
+
+void NasalSysTests::testNullAccess()
+{
+    auto nasalSys = globals->get_subsystem<FGNasalSys>();
+    nasalSys->getAndClearErrorList();
+
+    bool ok = FGTestApi::executeNasal(R"(
+        var s =  {
+           bar: 42
+        };
+
+        unitTest.assert_equal(s?.bar, 42);
+
+        var t = nil;
+        var z = t?.bar;
+        unitTest.assert_equal(z, nil);
+        
+
+    )");
+    CPPUNIT_ASSERT(ok);
+    auto errors = nasalSys->getAndClearErrorList();
+    CPPUNIT_ASSERT_EQUAL(errors.size(), static_cast<size_t>(0));
+}
+
+void NasalSysTests::testNullishChain()
+{
+    auto nasalSys = globals->get_subsystem<FGNasalSys>();
+    nasalSys->getAndClearErrorList();
+
+    bool ok = FGTestApi::executeNasal(R"(
+        var t = nil;
+        var s = 'abc';
+
+        unitTest.assert_equal(t ?? 99, 99);
+        unitTest.assert_equal(s ?? 'default', 'abc');
+        unitTest.assert_equal(t ?? 'default', 'default');
+    )");
+
+    CPPUNIT_ASSERT(ok);
+    auto errors = nasalSys->getAndClearErrorList();
+    CPPUNIT_ASSERT_EQUAL(errors.size(), static_cast<size_t>(0));
+}
