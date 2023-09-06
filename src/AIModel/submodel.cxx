@@ -194,7 +194,7 @@ void FGSubmodelMgr::update(double dt)
     for (auto sm : submodels) {
         bool trigger = false;
         if (sm->trigger_node) {
-            trigger = _trigger_node->getBoolValue();
+            trigger = sm->trigger_node->getBoolValue();
         }
 
         if (trigger && sm->count != 0) {

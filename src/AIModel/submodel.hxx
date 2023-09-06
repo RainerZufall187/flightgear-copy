@@ -160,7 +160,6 @@ private:
     SGPropertyNode_ptr _contrail_altitude_node;
     SGPropertyNode_ptr _contrail_trigger;
     SGPropertyNode_ptr _count_node;
-    SGPropertyNode_ptr _trigger_node;
     SGPropertyNode_ptr props;
     SGPropertyNode_ptr _model_added_node;
     SGPropertyNode_ptr _path_node;
