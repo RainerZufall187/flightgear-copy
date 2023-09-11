@@ -288,28 +288,31 @@ NewGUI::showDialog (const string &name)
     // check we know about the dialog by name
     if (_dialog_names.find(name) == _dialog_names.end()) {
         simgear::reportFailure(simgear::LoadFailure::NotFound, simgear::ErrorCode::GUIDialog, "Dialog not found:" + name);
-        SG_LOG(SG_GENERAL, SG_ALERT, "Dialog " << name << " not defined");
         return false;
     }
 
     flightgear::addSentryBreadcrumb("showing GUI dialog:" + name, "info");
-
+    try {
 #if !defined(ENABLE_PUICOMPAT)
-    _active_dialogs[name] = new FGPUIDialog(getDialogProperties(name));
+        _active_dialogs[name] = new FGPUIDialog(getDialogProperties(name));
 #else
-    SGSharedPtr<FGPUICompatDialog> pcd = new FGPUICompatDialog(getDialogProperties(name));
-    if (pcd->init()) {
-        _active_dialogs[name] = pcd; // establish ownership
-    } else {
-        return false;
-    }
+        SGSharedPtr<FGPUICompatDialog> pcd = new FGPUICompatDialog(getDialogProperties(name));
+        if (pcd->init()) {
+            _active_dialogs[name] = pcd; // establish ownership
+        } else {
+            return false;
+        }
 
 
 #endif
-    fgSetString("/sim/gui/dialogs/current-dialog", name);
+        fgSetString("/sim/gui/dialogs/current-dialog", name);
 
-//    setActiveDialog(new FGPUIDialog(getDialogProperties(name)));
-    return true;
+        //    setActiveDialog(new FGPUIDialog(getDialogProperties(name)));
+        return true;
+    } catch (sg_exception& e) {
+        simgear::reportFailure(simgear::LoadFailure::Misconfigured, simgear::ErrorCode::GUIDialog, "Dialog failed to show:" + name + ":" + e.getFormattedMessage(), e.getLocation());
+        return false;
+    }
 }
 
 bool
