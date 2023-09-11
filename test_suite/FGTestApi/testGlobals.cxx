@@ -1,3 +1,8 @@
+/* 
+SPDX-Copyright: James Turner
+SPDX-License-Identifier: GPL-2.0-or-later 
+*/
+
 #include "config.h"
 
 #include "test_suite/dataStore.hxx"
@@ -445,7 +450,15 @@ bool executeNasal(const std::string& code)
 
     return ok;
 }
-    
+
+SGPropertyNode_ptr propsFromString(const std::string& s)
+{
+    SGPropertyNode_ptr m = new SGPropertyNode;
+    std::istringstream iss(s);
+    readProperties(iss, m);
+    return m;
+}
+
 namespace tearDown {
 
 void shutdownTestGlobals()

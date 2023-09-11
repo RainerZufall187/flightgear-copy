@@ -1,11 +1,16 @@
-#ifndef FG_TEST_GLOBALS_HELPERS_HXX
-#define FG_TEST_GLOBALS_HELPERS_HXX
+/* 
+SPDX-Copyright: James Turner
+SPDX-License-Identifier: GPL-2.0-or-later 
+*/
+
+#pragma once
 
 #include <string>
 #include <functional>
 #include <vector>
 
 #include <simgear/math/SGGeod.hxx>
+#include <simgear/props/propsfwd.hxx>
 #include <simgear/structure/SGSharedPtr.hxx>
 
 namespace flightgear
@@ -42,6 +47,8 @@ void populateFPWithNasal(flightgear::FlightPlanRef f,
 
 // helpers during tests
 
+SGPropertyNode_ptr propsFromString(const std::string& s);
+
 const SGGeod getPosition();    
 void setPosition(const SGGeod& g);
 void setPositionAndStabilise(const SGGeod& g);
@@ -71,5 +78,3 @@ void shutdownTestGlobals();
 }  // End of namespace tearDown.
 
 }  // End of namespace FGTestApi.
-
-#endif // of FG_TEST_GLOBALS_HELPERS_HXX

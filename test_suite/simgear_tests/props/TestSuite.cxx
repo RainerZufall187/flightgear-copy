@@ -17,8 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "test_condition.hxx"
 #include "test_props.hxx"
-
 
 // Set up the tests.
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(SimgearPropsTests, "Simgear unit tests");
+CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(SimgearConditionTests, "Simgear unit tests");
