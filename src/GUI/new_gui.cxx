@@ -47,10 +47,12 @@
     #include <plib/puAux.h>
 #endif
 
-#if defined(ENABLE_PUICOMPAT)
+
+#include "FGNasalMenuBar.hxx"
 #include "FGPUICompatDialog.hxx"
 #include "PUICompatObject.hxx"
-#else
+
+#if defined(HAVE_PUI)
 #include "FGPUIDialog.hxx"
 #endif
 
@@ -65,7 +67,9 @@
 using std::map;
 using std::string;
 
+#if defined(HAVE_PUI)
 extern void puCleanUpJunk(void);
+#endif
 
 ////////////////////////////////////////////////////////////////////////
 // Implementation of NewGUI.
@@ -126,6 +130,8 @@ static void scanMenus()
 void
 NewGUI::init ()
 {
+    _usePUI = fgGetBool("/sim/gui/use-pui", true);
+
     createMenuBarImplementation();
     fgTie("/sim/menubar/visibility", this,
           &NewGUI::getMenuBarVisible, &NewGUI::setMenuBarVisible);
@@ -203,7 +209,11 @@ NewGUI::createMenuBarImplementation()
     }
 #endif
     if (!_menubar.get()) {
-        _menubar.reset(new FGPUIMenuBar);
+        if (_usePUI) {
+            _menubar.reset(new FGPUIMenuBar);
+        } else {
+            _menubar.reset(new FGNasalMenuBar);
+        }
     }
 }
 
@@ -251,7 +261,6 @@ NewGUI::unbind ()
 
 void NewGUI::postinit()
 {
-#if defined(ENABLE_PUICOMPAT)
     auto nas = globals->get_subsystem<FGNasalSys>();
     nasal::Context ctx;
     nasal::Hash guiModule{nas->getModule("gui"), ctx};
@@ -259,7 +268,7 @@ void NewGUI::postinit()
 
     FGPUICompatDialog::setupGhost(compatModule);
     PUICompatObject::setupGhost(compatModule);
-#endif
+    FGNasalMenuBar::setupGhosts(compatModule);
 }
 
 void
@@ -293,18 +302,17 @@ NewGUI::showDialog (const string &name)
 
     flightgear::addSentryBreadcrumb("showing GUI dialog:" + name, "info");
     try {
-#if !defined(ENABLE_PUICOMPAT)
-        _active_dialogs[name] = new FGPUIDialog(getDialogProperties(name));
-#else
-        SGSharedPtr<FGPUICompatDialog> pcd = new FGPUICompatDialog(getDialogProperties(name));
-        if (pcd->init()) {
-            _active_dialogs[name] = pcd; // establish ownership
+        if (_usePUI) {
+            _active_dialogs[name] = new FGPUIDialog(getDialogProperties(name));
         } else {
-            return false;
+            SGSharedPtr<FGPUICompatDialog> pcd = new FGPUICompatDialog(getDialogProperties(name));
+            if (pcd->init()) {
+                _active_dialogs[name] = pcd; // establish ownership
+            } else {
+                return false;
+            }
         }
 
-
-#endif
         fgSetString("/sim/gui/dialogs/current-dialog", name);
 
         //    setActiveDialog(new FGPUIDialog(getDialogProperties(name)));

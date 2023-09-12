@@ -1,5 +1,6 @@
-// FGPUICompatDialog.hxx - XML dialog class without using PUI
-// Copyright (C) 2022 James Turner
+// SPDX-FileName: FGPUICompatDialog.hxx
+// SPDX-FileComment: XML dialog class without using PUI
+// SPDX-FileCopyrightText: Copyright (C) 2022 James Turner
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once

@@ -203,7 +203,6 @@ option(ENABLE_HID_INPUT  "Set to ON to build HID-based input code" ${EVENT_INPUT
 option(ENABLE_PLIB_JOYSTICK  "Set to ON to enable legacy joystick code (default)" ON)
 option(ENABLE_SWIFT      "Set to ON to build the swift module" ON)
 option(ENABLE_SENTRY     "Set to ON to build the Sentry.io crash reporting" ON)
-option(ENABLE_PUICOMPAT        "Set to ON to enable compat GUI" OFF)
 
 # Test-suite options.
 option(ENABLE_AUTOTESTING "Set to ON to execute the test suite after building the test_suite target (default)" ON)
@@ -373,9 +372,12 @@ if (ENABLE_QT)
 else()
     set(ENABLE_FGQCANVAS OFF)
 endif (ENABLE_QT)
+
 ##############################################################################
 
 find_package(PLIB REQUIRED puaux pu)
+set(HAVE_PUI 1)
+##############################################################################
 
 # FlightGear and SimGear versions need to match major + minor
 # split version string into components, note CMAKE_MATCH_0 is the entire regexp match

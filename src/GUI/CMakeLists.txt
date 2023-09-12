@@ -1,50 +1,40 @@
 include(FlightGearComponent)
 
 set(SOURCES
-  AirportList.cxx
-  CanvasWidget.cxx
-  MapWidget.cxx
-  WaypointList.cxx
+ 
   dialog.cxx
-  FGPUIDialog.cxx
-  fonts.cxx
   gui.cxx
   gui_funcs.cxx
   layout-props.cxx
   layout.cxx
   menubar.cxx
-  FGPUIMenuBar.cxx
   new_gui.cxx
-  property_list.cxx
   FGFontCache.cxx
   FGColor.cxx
     FileDialog.cxx
-    PUIFileDialog.cxx
     MouseCursor.cxx
     MessageBox.cxx
     Highlight.cxx
+    FGPUICompatDialog.cxx
+    PUICompatObject.cxx
+    FGNasalMenuBar.cxx
   )
 
 set(HEADERS
-  AirportList.hxx
-  CanvasWidget.hxx
-  MapWidget.hxx
-  WaypointList.hxx
   dialog.hxx
-  FGPUIDialog.hxx
   gui.h
   layout.hxx
   menubar.hxx
-  FGPUIMenuBar.hxx
   new_gui.hxx
-  property_list.hxx
   FGFontCache.hxx
   FGColor.hxx
     FileDialog.hxx
-    PUIFileDialog.hxx
     MouseCursor.hxx
     MessageBox.hxx
     Highlight.hxx
+    FGPUICompatDialog.hxx
+    PUICompatObject.hxx
+    FGNasalMenuBar.hxx
   )
 
 if(WIN32)
@@ -68,25 +58,29 @@ if (APPLE)
         CocoaHelpers.mm)
 endif()
 
-if (ENABLE_PUICOMPAT)
-list(APPEND HEADERS 
-    FGPUICompatDialog.hxx
-    PUICompatObject.hxx
+if (HAVE_PUI)
+  list(APPEND HEADERS 
+    FGPUIMenuBar.hxx
+    FGPUIDialog.hxx
+    PUIFileDialog.hxx
+    AirportList.hxx
+    CanvasWidget.hxx
+    MapWidget.hxx
+    WaypointList.hxx
+    property_list.hxx
   )
 
   list(APPEND SOURCES
-    FGPUICompatDialog.cxx
-    PUICompatObject.cxx
+    FGPUIMenuBar.cxx
+    FGPUIDialog.cxx
+    PUIFileDialog.cxx
+    AirportList.cxx
+    CanvasWidget.cxx
+    MapWidget.cxx
+    WaypointList.cxx
+    fonts.cxx
+    property_list.cxx
   )
-else()
-list(APPEND HEADERS 
-FGPUIDialog.hxx
-)
-
-list(APPEND SOURCES
-FGPUIDialog.cxx
-)
-
 endif()
 
 if (HAVE_QT)
