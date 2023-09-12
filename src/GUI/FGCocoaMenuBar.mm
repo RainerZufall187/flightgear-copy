@@ -138,15 +138,16 @@ static void setItemShortcutFromString(NSMenuItem* item, const string& s)
   if (hasAlt) offset += 4;
   
   shortcut = s.substr(offset);
-  if (shortcut == "Esc")
+  if (shortcut == "Esc") {
     shortcut = "\e";    
+  }
   
     if ((shortcut.length() >= 2) && (shortcut[0] == 'F') && isdigit(shortcut[1])) {
         setFunctionKeyShortcut(shortcut, item);
         return;
     }
 
-    simgear::strutils::lowercase(shortcut);
+  shortcut = simgear::strutils::lowercase(shortcut);
   [item setKeyEquivalent:[NSString stringWithCString:shortcut.c_str() encoding:NSUTF8StringEncoding]];
   NSUInteger modifiers = 0;
   if (hasCtrl) modifiers |= NSEventModifierFlagControl;
