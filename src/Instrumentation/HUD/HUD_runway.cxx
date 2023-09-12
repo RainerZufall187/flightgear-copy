@@ -136,10 +136,10 @@ void HUD::Runway::draw()
     glEnable(GL_LINE_STIPPLE);
     glLineStipple(1, _stipple_out);
     anyLines =
-            drawLine(_points3d[0], _points3d[1], _points2d[0], _points2d[1]) | //draw top
-            drawLine(_points3d[2], _points3d[1], _points2d[2], _points2d[1]) | //draw right
-            drawLine(_points3d[2], _points3d[3], _points2d[2], _points2d[3]) | //draw bottom
-            drawLine(_points3d[3], _points3d[0], _points2d[3], _points2d[0]);  //draw left
+        drawLine(_points3d[0], _points3d[1], _points2d[0], _points2d[1]) || //draw top
+        drawLine(_points3d[2], _points3d[1], _points2d[2], _points2d[1]) || //draw right
+        drawLine(_points3d[2], _points3d[3], _points2d[2], _points2d[3]) || //draw bottom
+        drawLine(_points3d[3], _points3d[0], _points2d[3], _points2d[0]);   //draw left
 
     glLineStipple(1, _stipple_center);
     anyLines |= drawLine(_points3d[5], _points3d[4], _points2d[5], _points2d[4]); //draw center

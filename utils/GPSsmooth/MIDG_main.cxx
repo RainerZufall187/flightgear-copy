@@ -8,6 +8,7 @@
 #  include <netinet/in.h>       // htonl() ntohl()
 #endif
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
 
@@ -574,19 +575,19 @@ int main( int argc, char **argv ) {
         SGSerialPort input( serialdev, 115200 );
         if ( !input.is_enabled() ) {
             cout << "Cannot open: " << serialdev << endl;
-            return false;
+            return EXIT_FAILURE;
         }
 
         // open up the data log file if requested
         if ( !outfile.length() ) {
             cout << "no --outfile <name> specified, cannot capture data!"
                  << endl;
-            return false;
+            return EXIT_FAILURE;
         }
         SGFile output( outfile );
         if ( !output.open( SG_IO_OUT ) ) {
             cout << "Cannot open: " << outfile << endl;
-            return false;
+            return EXIT_FAILURE;
         }
 
         while ( input.is_enabled() ) {

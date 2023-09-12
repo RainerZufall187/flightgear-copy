@@ -15,13 +15,6 @@
 #include <simgear/structure/commands.hxx>
 #include <thread>
 
-namespace {
-inline std::string fgswiftbusServiceName()
-{
-    return "org.swift-project.fgswiftbus";
-}
-} // namespace
-
 namespace FGSwiftBus {
 CPlugin::CPlugin()
 {

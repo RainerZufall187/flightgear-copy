@@ -583,16 +583,13 @@ FGScheduledFlight* FGAISchedule::findAvailableFlight(const string& currentDestin
     if (fltBegin == fltEnd) {
         SG_LOG(SG_AI, SG_BULK, "No Flights Scheduled for " << req);
     }
-    int counter = 0;
+
     for (FGScheduledFlightVecIterator i = fltBegin; i != fltEnd; ++i) {
         (*i)->adjustTime(now);
-        //sort(fltBegin, fltEnd, compareScheduledFlights);
-        //cerr << counter++ << endl;
     }
     std::sort(fltBegin, fltEnd, FGScheduledFlight::compareScheduledFlights);
     for (FGScheduledFlightVecIterator i = fltBegin; i != fltEnd; ++i) {
         //bool valid = true;
-        counter++;
         if (!(*i)->isAvailable()) {
             SG_LOG(SG_AI, SG_BULK, "" << (*i)->getCallSign() << "is no longer available");
 

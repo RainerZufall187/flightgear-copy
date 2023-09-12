@@ -8,6 +8,7 @@
 #  include <netinet/in.h>       // htonl() ntohl()
 #endif
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
 
@@ -990,7 +991,6 @@ int main( int argc, char **argv ) {
     } else if ( serialdev.length() ) {
         // process incoming data from the serial port
 
-        int count = 0;
         double current_time = 0.0;
         double last_time = 0.0;
 
@@ -1012,19 +1012,19 @@ int main( int argc, char **argv ) {
         SGSerialPort uavcom( serialdev, 115200 );
         if ( !uavcom.is_enabled() ) {
             cout << "Cannot open: " << serialdev << endl;
-            return false;
+            return EXIT_FAILURE;
         }
 
         // open up the data log file if requested
         if ( !outfile.length() ) {
             cout << "no --outfile <name> specified, cannot capture data!"
                  << endl;
-            return false;
+            return EXIT_FAILURE;
         }
         SGFile log( outfile );
         if ( !log.open( SG_IO_OUT ) ) {
             cout << "Cannot open: " << outfile << endl;
-            return false;
+            return EXIT_FAILURE;
         }
 
         // add some test commands
@@ -1039,7 +1039,6 @@ int main( int argc, char **argv ) {
 					 &imupacket, &navpacket, &servopacket,
 					 &healthpacket, ignore_checksum );
             // cout << "message id = " << id << endl;
-            count++;
 
             telnet.process();
 

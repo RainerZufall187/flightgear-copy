@@ -50,7 +50,6 @@ private:
     std::unique_ptr<CTraffic> m_traffic;
 
     std::thread m_dbusThread;
-    bool m_isRunning = false;
     bool m_shouldStop = false;
 };
 } // namespace FGSwiftBus
