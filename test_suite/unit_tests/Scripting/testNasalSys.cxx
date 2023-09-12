@@ -328,6 +328,9 @@ void NasalSysTests::testNullishChain()
         unitTest.assert_equal(t ?? 99, 99);
         unitTest.assert_equal(s ?? 'default', 'abc');
         unitTest.assert_equal(t ?? 'default', 'default');
+
+        # check 0 is used, only nil should fail
+        unitTest.assert_equal(0 ?? 'default', 0);
     )");
 
     CPPUNIT_ASSERT(ok);
