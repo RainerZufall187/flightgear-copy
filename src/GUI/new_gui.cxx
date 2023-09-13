@@ -269,6 +269,8 @@ void NewGUI::postinit()
     FGPUICompatDialog::setupGhost(compatModule);
     PUICompatObject::setupGhost(compatModule);
     FGNasalMenuBar::setupGhosts(compatModule);
+
+    _menubar->postinit();
 }
 
 void

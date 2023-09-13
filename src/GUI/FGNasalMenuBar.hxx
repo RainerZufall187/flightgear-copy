@@ -42,6 +42,8 @@ public:
      */
     void init() override;
 
+    void postinit() override;
+
     /**
      * Make the menu bar visible.
      */

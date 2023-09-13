@@ -18,6 +18,7 @@
 
 #include <Main/fg_props.hxx>
 #include <Main/globals.hxx>
+#include <Scripting/NasalSys.hxx>
 
 static bool nameIsSeperator(const std::string& n)
 {
@@ -273,6 +274,23 @@ void FGNasalMenuBar::init()
 {
     SGPropertyNode_ptr props = fgGetNode("/sim/menubar/default", true);
     configure(props);
+}
+
+void FGNasalMenuBar::postinit()
+{
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    nasal::Context ctx;
+    nasal::Hash guiModule{nas->getModule("gui"), ctx};
+
+    using MenuBarRef = std::shared_ptr<NasalMenuBarPrivate>;
+    auto f = guiModule.get<std::function<void(MenuBarRef)>>("_createMenuBar");
+    if (!f) {
+        SG_LOG(SG_GUI, SG_DEV_ALERT, "GUI: _createMenuBar implementation not found");
+        return;
+    }
+
+    // invoke nasal callback to build up the menubar
+    f(_d);
 }
 
 void FGNasalMenuBar::show()

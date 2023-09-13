@@ -30,7 +30,11 @@ public:
      * Initialize the menu bar from $FG_ROOT/gui/menubar.xml
      */
     virtual void init () = 0;
-    
+
+    virtual void postinit()
+    {
+    }
+
     /**
      * Make the menu bar visible.
      */
