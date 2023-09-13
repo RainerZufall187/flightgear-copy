@@ -3242,6 +3242,7 @@ void Options::showUsage() const
       SGPropertyNode *short_name = option[k]->getNode("short");
       SGPropertyNode *key = option[k]->getNode("key");
       SGPropertyNode *arg = option[k]->getNode("arg");
+      SGPropertyNode *optionalArg = option[k]->getNode("optional-arg");
       bool brief = option[k]->getNode("brief") != 0;
 
       if ((brief || p->verbose) && name) {
@@ -3254,7 +3255,12 @@ void Options::showUsage() const
         if (arg) {
           tmp.append("=");
           tmp.append(arg->getStringValue());
+        } else if (optionalArg) {
+          tmp.append("[=");
+          tmp.append(optionalArg->getStringValue());
+          tmp.append("]");
         }
+
         if (short_name) {
           tmp.append(", -");
           tmp.append(short_name->getStringValue());
