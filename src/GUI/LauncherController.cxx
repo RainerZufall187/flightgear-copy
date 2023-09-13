@@ -136,7 +136,14 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
 
     if (settings.contains("window-state")) {
         const auto ws = static_cast<Qt::WindowState>(settings.value("window-state").toInt());
-        m_window->setWindowState(ws);
+        const auto options = flightgear::Options::sharedInstance();
+        if (ws == Qt::WindowState::WindowFullScreen && options->isBoolOptionDisable("fullscreen")) {
+            // Last time we used fullscreen, but now we explicitly turn off fullscreen
+            m_window->setWindowState(Qt::WindowState::WindowNoState);
+        }
+        else {
+            m_window->setWindowState(ws);
+        }
     }
 
     // count launches; we use this to trigger first-run and periodic notices
