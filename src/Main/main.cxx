@@ -806,6 +806,14 @@ int fgMainInit( int argc, char **argv )
         for (int arg = 1; arg < argc; ++arg) {
             originalArgs.push_back(argv[arg]);
         }
+
+        if (!showLauncher) {
+            // The user specified the --restart-launcher option but without the
+            // --launcher option. So let's add the --launcher option so that the
+            // launcher actually starts instead of the simulator again.
+            originalArgs.push_back("--launcher");
+        }
+
         flightgear::addSentryBreadcrumb("Requested to restart launcher", "info");
         flightgear::startLaunchOnExit(originalArgs);
     }
