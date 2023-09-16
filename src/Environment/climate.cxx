@@ -20,6 +20,7 @@
 
 #include "environment.hxx"
 #include "atmosphere.hxx"
+#include "environment_mgr.hxx"
 #include "climate.hxx"
 
 // Based on "World Map of the Köppen-Geiger climate classification"
@@ -99,8 +100,6 @@ void FGClimate::bind()
     _tiedProperties.Tie( "snow-level-m", &_snow_level);
     _tiedProperties.Tie( "wind-speed-mps", &_wind_speed);
     _tiedProperties.Tie( "wind-direction-deg", &_wind_direction);
-
-    _tiedProperties.Tie("is-isa", &_is_isa);
 }
 
 void FGClimate::unbind ()
@@ -216,7 +215,7 @@ void FGClimate::update(double dt)
         // calculate sea level parameters from ground level parameters
         // adapted from metarproperties.cxx
         FGEnvironment dummy;
-        dummy.set_is_isa(_is_isa);
+        dummy.set_is_isa(globals->get_subsystem<FGEnvironmentMgr>()->getEnvironment().get_is_isa());
         dummy.set_live_update(false);
         dummy.set_elevation_ft(_gl.elevation_m*SG_METER_TO_FEET);
         dummy.set_dewpoint_degc(_gl.dewpoint);

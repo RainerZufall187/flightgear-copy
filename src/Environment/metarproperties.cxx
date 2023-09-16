@@ -13,6 +13,7 @@
 #include <cstring> // for strlen
 
 #include "metarproperties.hxx"
+#include "environment_mgr.hxx"
 #include "fgmetar.hxx"
 #include "environment.hxx"
 #include "atmosphere.hxx"
@@ -291,6 +292,7 @@ void MetarProperties::setMetar( SGSharedPtr<FGMetar> m )
 
     {    // calculate sea level temperature, dewpoint and pressure
         FGEnvironment dummy; // instantiate a dummy so we can leech a method
+        dummy.set_is_isa( globals->get_subsystem<FGEnvironmentMgr>()->getEnvironment().get_is_isa() );
         dummy.set_elevation_ft( _station_elevation );
         dummy.set_temperature_degc( _temperature );
         dummy.set_dewpoint_degc( _dewpoint );

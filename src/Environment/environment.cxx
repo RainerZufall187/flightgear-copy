@@ -354,6 +354,10 @@ void FGEnvironment::Tie( SGPropertyNode_ptr base, bool archivable )
 
   _tiedProperties.Tie("atmosphere/density-tropo-avg", this,
       &FGEnvironment::get_density_tropo_avg_kgm3); //ro
+
+  _tiedProperties.Tie("atmosphere/is-isa", this,
+      &FGEnvironment::get_is_isa,
+      &FGEnvironment::set_is_isa);
 }
 
 void FGEnvironment::Untie()

@@ -192,8 +192,6 @@ private:
     double _wind_direction = -99999.0;	// wind direction in degrees
 
     char _metar[256] = "";
-
-    bool _is_isa = false;
 };
 
 #endif // _FGCLIMATE_HXX

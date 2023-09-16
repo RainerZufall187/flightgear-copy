@@ -194,7 +194,7 @@ Item {
                             _config.setArg("metar", _weatherScenarios.metarForItem(index))
 
                             var isISA = _weatherScenarios.nameForItem(index) == "International Standard Atmosphere";
-                            _config.setProperty("/environment/climate/is-isa", isISA);
+                            _config.setProperty("/environment/atmosphere/is-isa", isISA);
                         }
 
                         // either way, set the scenario name since Local-Weather keys off
