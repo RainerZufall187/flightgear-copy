@@ -23,6 +23,7 @@
 #include <simgear/structure/exception.hxx>
 #include <simgear/structure/OSGUtils.hxx>
 #include <simgear/scene/material/EffectCullVisitor.hxx>
+#include <simgear/scene/util/ProjectionMatrix.hxx>
 #include <simgear/scene/util/RenderConstants.hxx>
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
 #include <simgear/scene/viewer/Compositor.hxx>
@@ -248,7 +249,8 @@ void CameraGroup::update(const osg::Vec3d& position,
         if ((info->flags & CameraInfo::SPLASH) == 0 &&
             (info->flags & CameraInfo::GUI) == 0 &&
             (info->flags & CameraInfo::FIXED_NEAR_FAR) == 0) {
-            makeNewProjMat(proj_matrix, _zNear, _zFar, new_proj_matrix);
+            ProjectionMatrix::makeNearFarPlanes(proj_matrix, _zNear, _zFar,
+                                                new_proj_matrix);
         }
 
         info->viewMatrix = view_matrix;
@@ -259,11 +261,12 @@ void CameraGroup::update(const osg::Vec3d& position,
 
 void CameraGroup::setCameraParameters(float vfov, float aspectRatio)
 {
-    if (vfov != 0.0f && aspectRatio != 0.0f)
-        _viewer->getCamera()
-            ->setProjectionMatrixAsPerspective(vfov,
-                                               1.0f / aspectRatio,
-                                               _zNear, _zFar);
+    if (vfov != 0.0f && aspectRatio != 0.0f) {
+        osg::Matrixd m;
+        ProjectionMatrix::makePerspective(m, vfov, 1.0 / aspectRatio,
+                                          _zNear, _zFar, ProjectionMatrix::STANDARD);
+        _viewer->getCamera()->setProjectionMatrix(m);
+    }
 }
 
 double CameraGroup::getMasterAspectRatio() const
@@ -487,6 +490,9 @@ CameraInfo* CameraGroup::buildCamera(SGPropertyNode* cameraNode)
         return nullptr;
     }
 
+    // Set the projection matrix near/far behaviour
+    ProjectionMatrix::Type proj_type = ProjectionMatrix::STANDARD;
+
     // Set vr-mirror flag so camera switches to VR mirror when appropriate.
     if (cameraNode->getBoolValue("vr-mirror", false))
         cameraFlags |= CameraInfo::VR_MIRROR;
@@ -554,7 +560,11 @@ CameraInfo* CameraGroup::buildCamera(SGPropertyNode* cameraNode)
         double left = -tan_fovy * aspectRatio * zNear + offsetX;
         double top = tan_fovy * zNear + offsetY;
         double bottom = -tan_fovy * zNear + offsetY;
-        pOff.makeFrustum(left, right, bottom, top, zNear, zFar);
+        ProjectionMatrix::makeFrustum(pOff,
+                                      left, right,
+                                      bottom, top,
+                                      zNear, zFar,
+                                      proj_type);
         cameraFlags |= CameraInfo::PROJECTION_ABSOLUTE;
         if (projectionNode->getBoolValue("fixed-near-far", true))
             cameraFlags |= CameraInfo::FIXED_NEAR_FAR;
@@ -567,10 +577,18 @@ CameraInfo* CameraGroup::buildCamera(SGPropertyNode* cameraNode)
         double zNear = projectionNode->getDoubleValue("near", 0.0);
         double zFar = projectionNode->getDoubleValue("far", zNear + 20000);
         if (cameraNode->getNode("frustum")) {
-            pOff.makeFrustum(left, right, bottom, top, zNear, zFar);
+            ProjectionMatrix::makeFrustum(pOff,
+                                          left, right,
+                                          bottom, top,
+                                          zNear, zFar,
+                                          proj_type);
             cameraFlags |= CameraInfo::PROJECTION_ABSOLUTE;
         } else {
-            pOff.makeOrtho(left, right, bottom, top, zNear, zFar);
+            ProjectionMatrix::makeOrtho(pOff,
+                                        left, right,
+                                        bottom, top,
+                                        zNear, zFar,
+                                        proj_type);
             cameraFlags |= (CameraInfo::PROJECTION_ABSOLUTE | CameraInfo::ORTHO);
         }
         if (projectionNode->getBoolValue("fixed-near-far", true))
@@ -583,7 +601,11 @@ CameraInfo* CameraGroup::buildCamera(SGPropertyNode* cameraNode)
         double right = 0.5*physicalWidth - xoff;
         double bottom = -0.5*physicalHeight - yoff;
         double top = 0.5*physicalHeight - yoff;
-        pOff.makeFrustum(left, right, bottom, top, zNear, zNear + 20000);
+        ProjectionMatrix::makeFrustum(pOff,
+                                      left, right,
+                                      bottom, top,
+                                      zNear, zNear + 20000.0,
+                                      proj_type);
         cameraFlags |= CameraInfo::PROJECTION_ABSOLUTE | CameraInfo::ENABLE_MASTER_ZOOM;
     } else if ((projectionNode = cameraNode->getNode("right-of-perspective"))
                || (projectionNode = cameraNode->getNode("left-of-perspective"))
@@ -647,7 +669,8 @@ CameraInfo* CameraGroup::buildCamera(SGPropertyNode* cameraNode)
             thisReference[1][1] = pointNode->getDoubleValue("y", 0)*2/physicalHeight;
         }
 
-        pOff = osg::Matrix::perspective(45, physicalWidth/physicalHeight, 1, 20000);
+        ProjectionMatrix::makePerspective(pOff, 45, physicalWidth/physicalHeight,
+                                          1, 20000, proj_type);
         cameraFlags |= CameraInfo::PROJECTION_ABSOLUTE | CameraInfo::ENABLE_MASTER_ZOOM;
     } else {
         // old style shear parameters
