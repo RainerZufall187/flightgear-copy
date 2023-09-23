@@ -56,7 +56,7 @@ _get_fg_root()
         root="$value"
         return 0
     # value stored in environment variable $FG_ROOT?
-    else if [ -n "$FG_ROOT" ]
+    elif [ -n "$FG_ROOT" ]
     then
         root="$FG_ROOT"
         return 0
@@ -71,7 +71,6 @@ _get_fg_root()
             fi
         done
     fi
-    fi
 }
 
 _get_fg_scenery()
@@ -84,7 +83,7 @@ _get_fg_scenery()
     then
         scenery="$value"
     # value stored in environment variable $FG_SCENERY?
-    else if [ -n "$FG_SCENERY" ]
+    elif [ -n "$FG_SCENERY" ]
     then
         scenery="$FG_SCENERY"
     # no clue! try default:
@@ -93,8 +92,7 @@ _get_fg_scenery()
         _get_fg_root
         scenery="$root/Scenery"
     fi
-    fi
-    
+
     return 0
 }
 
@@ -108,7 +106,7 @@ _get_fg_aircraft()
     then
         aircraft_dir="$value"
     # value stored in environment variable $FG_AIRCRAFT?
-    else if [ -n "$FG_AIRCRAFT" ]
+    elif [ -n "$FG_AIRCRAFT" ]
     then
         aircraft_dir="$FG_AIRCRAFT"
     # no clue! try default:
@@ -116,7 +114,6 @@ _get_fg_aircraft()
         local root
         _get_fg_root
         aircraft_dir="$root/Aircraft"
-    fi
     fi
 }
 
@@ -146,7 +143,15 @@ _get_scenarios()
     local value
     _get_opts "ai-scenario"
     
-    scenarios="$value nimitz_demo"
+    scenarios="$value clemenceau_demo eisenhower_demo foch_demo kuznetsov_demo liaoning_demo nimitz_demo sanantonio_demo truman_demo vinson_demo"
+}
+
+_get_fdm()
+{
+    local value
+    _get_opt "fdm"
+    
+    fdm=$value
 }
 
 
@@ -155,25 +160,40 @@ _fgfs()
     local cur prev words cword split
     _init_completion -s || return
 
-    local root airport aircraft_dir carrier scenarios scenery value
+    local root airport aircraft_dir carrier scenarios scenery value fdm
     
     # auto-completion for values of keys ( --key=value )
     case "$prev" in
-        --fg-aircraft|--fg-root|--fg-scenery|--flight-plan|--terrasync-dir|--materials-file|--config|--browser-app)
+        --fg-aircraft|\
+        --fg-root|\
+        --fg-scenery|\
+        --flight-plan|\
+        --terrasync-dir|\
+        --materials-file|\
+        --config|\
+        --browser-app|\
+        --data|\
+        --addon|\
+        --download-dir|\
+        --log-dir|\
+        --load-tape|\
+        --texture-cache-dir|\
+        --jsbsim-output-directive-file|\
+        --allow-nasal-read)
             # completion of filesystem path
             _filedir
             return 0 ;;
         --ai-scenario)
             # list of scenarios in $FG_ROOT/AI
             _get_fg_root
-            scenarios="$(find "$root/AI" -maxdepth 1 -iname *.xml -printf '%f\n' | sed -e 's/.xml$//')"
+            scenarios="$(find "$root/AI" -maxdepth 1 -iname '*.xml' -printf '%f\n' | sed -e 's/.xml$//')"
             
             COMPREPLY=( $(compgen -W "${scenarios}" -- ${cur}) )
             return 0 ;;
         --aircraft|--vehicle)
             # list of aircrafts in $FG_AIRCRAFT
             _get_fg_aircraft
-            aircrafts="$(find "$aircraft_dir" -maxdepth 2 -mindepth 2 -iname *-set.xml -printf '%f\n' | sed -e 's/-set.xml$//')"
+            aircrafts="$(find "$aircraft_dir" -maxdepth 2 -mindepth 2 -iname '*-set.xml' -printf '%f\n' | sed -e 's/-set.xml$//')"
             
             COMPREPLY=( $(compgen -W "${aircrafts}" -- ${cur}) )
             return 0 ;;
@@ -186,11 +206,10 @@ _fgfs()
                 COMPREPLY=( $(compgen -W "$(awk 'BEGIN { FS="|"; } { print $1 }' "$scenery/Airports/index.txt")" -- ${cur}) )
                 return 0
             # or at least the apt.dat file?
-            else if [ -e "$root/Airports/apt.dat.gz" ]
+            elif [ -e "$root/Airports/apt.dat.gz" ]
             then
                 COMPREPLY=( $(compgen -W "$(zcat "$root/Airports/apt.dat.gz" | awk '/^1 / { print $5 }')" -- ${cur}) )
                 return 0
-            fi
             fi
             
             return 0 ;;
@@ -242,18 +261,16 @@ BEGIN { carrier=0; name=""; }
             
             COMPREPLY=( $(compgen -W "${runways}" -- ${cur}) )
             return 0 ;;
-        --parkpos)
+        --carrier-position)
             # try to find out the name of the carrier or the ID of the airport
             _get_carrier
             
-            if [ -n "$carrier" ]
-            then
-                _get_fg_root
-                _get_scenarios
-                
-                for scenario in $scenarios
-                do
-                    positions="$(awk -v carrier_name="$carrier" '
+            _get_fg_root
+            _get_scenarios
+            
+            for scenario in $scenarios
+            do
+                positions="$(awk -v carrier_name="$carrier" '
 BEGIN { carrier=0; name=0; parkpos=0; }
 /<type>/ {
     a=index($0,"<type>")+6; s=index(substr($0,a),"</type>")-1;
@@ -274,33 +291,34 @@ BEGIN { carrier=0; name=0; parkpos=0; }
     carrier=name=parkpos=0;
 }' "$root/AI/$scenario.xml")"
                     
-                    if [ -n "$positions" ]
-                    then
-                        break
-                    fi
-                done
-                
+                if [ -n "$positions" ]
+                then
+                    break
+                fi
+            done
+            
+            COMPREPLY=( $(compgen -W "${positions} abeam FLOLS" -- ${cur}) )
+            return 0 ;;
+        --parkpos|--parking-id)
+            _get_fg_scenery
+            _get_airport
+            
+            # search for the groundnet or parking file
+            path="$scenery/Airports/${airport:0:1}/${airport:1:1}/${airport:2:1}"
+            
+            if [ -e "$path/$airport.groundnet.xml" ]
+            then
+                file="$airport.groundnet.xml"
+            elif [ -e "$path/$airport.parking.xml" ]
+            then
+                file="$airport.parking.xml"
             else
-                _get_fg_scenery
-                _get_airport
-                
-                # search for the groundnet or parking file
-                path="$scenery/Airports/${airport:0:1}/${airport:1:1}/${airport:2:1}"
-                
-                if [ -e "$path/$airport.groundnet.xml" ]
-                then
-                    file="$airport.groundnet.xml"
-                else if [ -e "$path/$airport.parking.xml" ]
-                then
-                    file="$airport.parking.xml"
-                else
-                    # no file found => do not try to analyze it!
-                    return 0
-                fi
-                fi
-                
-                # build a list of the parking positions at that airport
-                positions="$(awk -- '
+                # no file found => do not try to analyze it!
+                return 0
+            fi
+            
+            # build a list of the parking positions at that airport
+            positions="$(awk -- '
 /<Parking/ {
     pos_active=1;
     name=number="";
@@ -324,12 +342,8 @@ BEGIN { carrier=0; name=0; parkpos=0; }
     pos_active=0;
     name=number="";
 }' "$path/$file")"
-            fi
-            
+
             COMPREPLY=( $(compgen -W "${positions}" -- ${cur}) )
-            return 0 ;;
-        --control)
-            COMPREPLY=( $(compgen -W "joystick keyboard mouse" -- ${cur}) )
             return 0 ;;
         --failure)
             COMPREPLY=( $(compgen -W "pitot static vacuum electrical" -- ${cur}) )
@@ -339,13 +353,15 @@ BEGIN { carrier=0; name=0; parkpos=0; }
             COMPREPLY=( $(compgen -W "$(zcat "$root/Navaids/fix.dat.gz" | awk '{ print substr($3,0,5) }')" -- ${cur}) )
             return 0 ;;
         --fdm)
-            COMPREPLY=( $(compgen -W "jsb larcsim yasim magic balloon ada external null" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "ada acms aisim balloon jsb larcsim magic network pipe ufo yasim external null" -- ${cur}) )
             return 0 ;;
         --min-status)
-            COMPREPLY=( $(compgen -W "alpha beta early-production production" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "alpha beta early-production production advanced-production" -- ${cur}) )
             return 0 ;;
         --log-class)
-            COMPREPLY=( $(compgen -W "ai environment flight general io network sound terrain" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "none ai aircraft astro atc autopilot clipper cockpit environment event flight \
+                                     general gl gui headless input instrumentation io math nasal navaid network osg \
+                                     particles sound systems terrain terrasync undefined view all" -- ${cur}) )
             return 0 ;;
         --log-level)
             COMPREPLY=( $(compgen -W "bulk debug info warn alert" -- ${cur}) )
@@ -359,8 +375,8 @@ BEGIN { carrier=0; name=0; parkpos=0; }
             _get_opt "ndb"
             COMPREPLY=( $(compgen -W "$(zcat "$root/Navaids/nav.dat.gz" | awk -v nav=$value '/^2 / { if($8 == nav) print $5 }')" -- ${cur}) )
             return 0 ;;
-        --season)
-            COMPREPLY=( $(compgen -W "summer winter" -- ${cur}) )
+        --dme)
+            COMPREPLY=( $(compgen -W "nav1 nav2" -- ${cur}) )
             return 0 ;;
         --texture-filtering)
             COMPREPLY=( $(compgen -W "1 2 4 8 16" -- ${cur}) )
@@ -380,16 +396,140 @@ BEGIN { carrier=0; name=0; parkpos=0; }
             _get_opt "vor"
             COMPREPLY=( $(compgen -W "$(zcat "$root/Navaids/nav.dat.gz" | awk -v nav=$value '/^3 / { if($8 == nav) print substr($5,0,3) "." substr($5,4) }')" -- ${cur}) )
             return 0 ;;
+        --bpp)
+            COMPREPLY=( $(compgen -W "16 24 32" -- ${cur}) )
+            return 0 ;;
+        --graphics-preset)
+            COMPREPLY=( $(compgen -W "minimal-quality low-quality medium-quality high-quality ultra-quality" -- ${cur}) )
+            return 0 ;;
+        --terrain-engine)
+            COMPREPLY=( $(compgen -W "tilecache pagedLOD" -- ${cur}) )
+            return 0 ;;
+        --lod-texturing)
+            COMPREPLY=( $(compgen -W "bluemarble raster debug" -- ${cur}) )
+            return 0 ;;
+        --aero)
+            _get_fdm
+
+            if [ "${fdm}" == "larcsim" ]
+            then
+                COMPREPLY=( $(compgen -W "basic c172 cherokee navion uiuc" -- ${cur}) )
+                return 0
+            fi
+            
+            return 0 ;;
+        --compositor)
+            COMPREPLY=( $(compgen -W "Compositor/default Compositor/Classic/classic Compositor/HDR/hdr" -- ${cur}) )
+            return 0 ;;
+        --language)
+            COMPREPLY=( $(compgen -W "ca de en es fr it nl pl pt ru tr sk zh TEST" -- ${cur}) )
+            return 0 ;;
+        --version|\
+        --terrasync|\
+        --launcher|\
+        --splash-screen|\
+        --mouse-pointer|\
+        --no-default-config|\
+        --read-only|\
+        --ignore-autosave|\
+        --save-on-exit|\
+        --restore-defaults|\
+        --gui|\
+        --composite-viewer|\
+        --panel|\
+        --freeze|\
+        --fuel-freeze|\
+        --clock-freeze|\
+        --ai-models|\
+        --ai-traffic|\
+        --vr|\
+        --restart-launcher|\
+        --load-tape-create-video|\
+        --auto-coordination|\
+        --trim|\
+        --notrim|\
+        --on-ground|\
+        --in-air|\
+        --show-sound-devices|\
+        --sound|\
+        --horizon-effect|\
+        --distance-attenuation|\
+        --specular-highlight|\
+        --clouds|\
+        --clouds3d|\
+        --texture-cache|\
+        --fullscreen|\
+        --random-objects|\
+        --wireframe|\
+        --hud|\
+        --anti-alias-hud|\
+        --hud-3d|\
+        --allow-nasal-from-sockets|\
+        --sentry|\
+        --fgcom|\
+        --hold-short|\
+        --real-weather-fetch|\
+        --horizon-effect|\
+        --console|\
+        --developer|\
+        --fpe|\
+        --json-report)
+            COMPREPLY=( $(compgen -W "true false 1 0 yes no" -- ${cur}) )
+            # Without `return 0` to allow not giving the value true/false/1/0/yes/no
+            # and instead giving another option starting with --
+            # return 0 ;; <- skip it
     esac
     
     case "${cur}" in
         -*)
+            # These options are not included in the -h -v output so we add them manually:
+            EnableDisableOptions="--enable-terrasync --disable-terrasync \
+                                  --enable-launcher --disable-launcher \
+                                  --enable-splash-screen --disable-splash-screen \
+                                  --enable-mouse-pointer --disable-mouse-pointer \
+                                  --enable-read-only --disable-read-only \
+                                  --enable-ignore-autosave --disable-ignore-autosave \
+                                  --enable-save-on-exit --disable-save-on-exit \
+                                  --enable-restore-defaults --disable-restore-defaults \
+                                  --enable-gui --disable-gui \
+                                  --enable-composite-viewer --disable-composite-viewer \
+                                  --enable-panel --disable-panel \
+                                  --enable-freeze --disable-freeze \
+                                  --enable-fuel-freeze --disable-fuel-freeze \
+                                  --enable-clock-freeze --disable-clock-freeze \
+                                  --enable-ai-models --disable-ai-models \
+                                  --enable-ai-traffic --disable-ai-traffic \
+                                  --enable-vr --disable-vr \
+                                  --enable-restart-launcher --disable-restart-launcher \
+                                  --enable-load-tape-create-video --disable-load-tape-create-video \
+                                  --enable-auto-coordination --disable-auto-coordination \
+                                  --enable-sound --disable-sound \
+                                  --enable-horizon-effect --disable-horizon-effect \
+                                  --enable-distance-attenuation --disable-distance-attenuation \
+                                  --enable-specular-highlight --disable-specular-highlight \
+                                  --enable-clouds --disable-clouds \
+                                  --enable-clouds3d --disable-clouds3d \
+                                  --enable-texture-cache --disable-texture-cache \
+                                  --enable-fullscreen --disable-fullscreen \
+                                  --enable-random-objects --disable-random-objects \
+                                  --enable-wireframe --disable-wireframe \
+                                  --enable-hud --disable-hud \
+                                  --enable-anti-alias-hud --disable-anti-alias-hud \
+                                  --enable-hud-3d --disable-hud-3d \
+                                  --enable-allow-nasal-from-sockets --disable-allow-nasal-from-sockets \
+                                  --enable-sentry --disable-sentry \
+                                  --enable-fgcom --disable-fgcom \
+                                  --enable-hold-short --disable-hold-short \
+                                  --enable-real-weather-fetch --disable-real-weather-fetch \
+                                  --enable-horizon-effect --disable-horizon-effect \
+                                  --enable-developer --disable-developer \
+                                  --enable-fpe --disable-fpe";
             # auto completion for options
-            COMPREPLY=( $(compgen -W "$(_parse_help fgfs "--help --verbose")" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "$(_parse_help fgfs "--help --verbose") ${EnableDisableOptions}" -- ${cur}) )
             # no whitespace after keys
             [[ $COMPREPLY == *= ]] && compopt -o nospace ;;
         *)
-            _filedir
+            return 0
     esac
     
     return 0
