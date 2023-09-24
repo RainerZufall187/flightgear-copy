@@ -249,8 +249,8 @@ void CameraGroup::update(const osg::Vec3d& position,
         if ((info->flags & CameraInfo::SPLASH) == 0 &&
             (info->flags & CameraInfo::GUI) == 0 &&
             (info->flags & CameraInfo::FIXED_NEAR_FAR) == 0) {
-            ProjectionMatrix::makeNearFarPlanes(proj_matrix, _zNear, _zFar,
-                                                new_proj_matrix);
+            ProjectionMatrix::clampNearFarPlanes(proj_matrix, _zNear, _zFar,
+                                                 new_proj_matrix);
         }
 
         info->viewMatrix = view_matrix;
