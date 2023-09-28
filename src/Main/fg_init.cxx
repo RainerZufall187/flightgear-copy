@@ -114,7 +114,9 @@
 #include <Environment/environment_mgr.hxx>
 #include <Environment/ephemeris.hxx>
 #include <FDM/fdm_shell.hxx>
+#ifdef ENABLE_HUD
 #include <Instrumentation/HUD/HUD.hxx>
+#endif
 #include <Navaids/NavDataCache.hxx>
 #include <Network/DNSClient.hxx>
 #include <Network/HTTPClient.hxx>
@@ -1081,7 +1083,9 @@ void fgCreateSubsystems(bool duringReset) {
     
     // SGSubsystemMgr::DISPLAY
     {
+#ifdef ENABLE_HUD
         mgr->add<HUD>();
+#endif
         mgr->add<flightgear::CockpitDisplayManager>();
 
         simgear::canvas::Canvas::setSystemAdapter(

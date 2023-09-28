@@ -96,7 +96,9 @@
 #include <GUI/gui.h>
 #include <GUI/Highlight.hxx>
 
-#include <Instrumentation/HUD/HUD.hxx>
+#ifdef ENABLE_HUD
+#  include <Instrumentation/HUD/HUD.hxx>
+#endif
 #include <Environment/precipitation_mgr.hxx>
 #include <Environment/environment_mgr.hxx>
 #include <Environment/ephemeris.hxx>
@@ -146,6 +148,7 @@ private:
   SGPropertyNode_ptr mConfigNode;
 };
 
+#ifdef ENABLE_HUD
 
 class SGHUDDrawable : public osg::Drawable {
 public:
@@ -193,6 +196,8 @@ public:
 
 private:
 };
+
+#endif
 
 class FGLightSourceUpdateCallback : public osg::NodeCallback {
 public:
@@ -726,9 +731,11 @@ FGRenderer::setupView( void )
 
     osg::Camera* guiCamera = getGUICamera(CameraGroup::getDefault());
     if (guiCamera) {
+#ifdef ENABLE_HUD
         osg::Geode* hudGeode = new osg::Geode;
         hudGeode->addDrawable(new SGHUDDrawable);
         guiCamera->addChild(hudGeode);
+#endif
 
 #if defined(HAVE_PUI)
         _puiCamera = new flightgear::PUICamera;
