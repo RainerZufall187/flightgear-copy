@@ -28,7 +28,10 @@
 
 #include <Main/globals.hxx>
 #include <Scripting/NasalSys.hxx>
+
+#if defined(HAVE_PUI)
 #include "PUIFileDialog.hxx"
+#endif
 
 #if defined(SG_MAC)
     #include "CocoaFileDialog.hxx"
@@ -147,8 +150,11 @@ static naRef f_createFileDialog(const nasal::CallContext& ctx)
     FileDialogPtr fd(new CocoaFileDialog(usage));
 #elif defined(HAVE_QT)
     FileDialogPtr fd(new QtFileDialog(usage));
-#else
+#elif defined(HAVE_PUI)
     FileDialogPtr fd(new PUIFileDialog(usage));
+#else
+    // we need a fallback implementation
+    FileDialogPtr fd;
 #endif
 
     return ctx.to_nasal(fd);

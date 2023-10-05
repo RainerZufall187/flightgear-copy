@@ -143,8 +143,12 @@ private:
 void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
 {
     auto n = config->getChild("name");
-    _name = n->getStringValue();
-    n->addChangeListener(this);
+    if (!n) {
+        SG_LOG(SG_GUI, SG_DEV_WARN, "menu item without <name> element:" << config->getLocation());
+    } else {
+        _name = n->getStringValue();
+        n->addChangeListener(this);
+    }
 
     if (n->getBoolValue("seperator") || nameIsSeperator(_name)) {
         _isSeperator = true;
@@ -177,7 +181,8 @@ void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
         _shortcut = n->getStringValue();
     }
 
-    _bindings = readBindingList(n->getChildren("binding"), globals->get_props());
+    auto bindingNodes = n->getChildren("binding");
+    _bindings = readBindingList(bindingNodes, globals->get_props());
 
     n = config->getChild("menu");
     if (n) {

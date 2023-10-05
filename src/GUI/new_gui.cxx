@@ -28,7 +28,6 @@
 #include "GL/glx.h"
 #endif
 
-#include "FGPUIMenuBar.hxx"
 
 #if defined(SG_MAC)
 #include "FGCocoaMenuBar.hxx"
@@ -54,6 +53,7 @@
 
 #if defined(HAVE_PUI)
 #include "FGPUIDialog.hxx"
+#include "FGPUIMenuBar.hxx"
 #endif
 
 #include "FGFontCache.hxx"
@@ -177,7 +177,9 @@ NewGUI::shutdown()
     _menubar.reset();
     _dialog_props.clear();
 
+#if defined(HAVE_PUI)
     puCleanUpJunk();
+#endif
 }
 
 void
@@ -208,12 +210,14 @@ NewGUI::createMenuBarImplementation()
    //     _menubar.reset(new FGWindowsMenuBar);
     }
 #endif
+#if defined(HAVE_PUI)
+    if (!_menubar.get() && _usePUI) {
+        _menubar.reset(new FGPUIMenuBar);
+    }
+#endif
+
     if (!_menubar.get()) {
-        if (_usePUI) {
-            _menubar.reset(new FGPUIMenuBar);
-        } else {
-            _menubar.reset(new FGNasalMenuBar);
-        }
+        _menubar.reset(new FGNasalMenuBar);
     }
 }
 
