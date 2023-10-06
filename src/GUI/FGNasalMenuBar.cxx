@@ -74,6 +74,11 @@ public:
         return _isCheckable;
     }
 
+    std::string label() const
+    {
+        return _label;
+    }
+
     void fire();
 
     void aboutToShow();
@@ -90,6 +95,7 @@ protected:
 
 private:
     std::string _name;
+    std::string _label;
     std::string _shortcut;
     bool _isSeperator = false;
     bool _isCheckable = false;
@@ -97,7 +103,7 @@ private:
     bool _checked = false;
 
     SGPropertyNode_ptr _enabledNode,
-        _checkedNode;
+        _checkedNode, _labelNode;
     NasalMenuPtr _submenu;
     SGBindingList _bindings;
 };
@@ -107,6 +113,11 @@ class NasalMenu : public SGReferenced,
 {
 public:
     using ItemsVec = std::vector<NasalMenuItemPtr>;
+
+    std::string label() const
+    {
+        return _label;
+    }
 
     std::string name() const
     {
@@ -132,8 +143,9 @@ protected:
 
 private:
     std::string _name;
+    std::string _label;
     bool _enabled = true;
-    SGPropertyNode_ptr _enabledNode;
+    SGPropertyNode_ptr _enabledNode, _labelNode;
     ItemsVec _items;
 };
 
@@ -148,11 +160,17 @@ void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
     } else {
         _name = n->getStringValue();
         n->addChangeListener(this);
+
+        if (n->getBoolValue("seperator") || nameIsSeperator(_name)) {
+            _isSeperator = true;
+        }
     }
 
-    if (n->getBoolValue("seperator") || nameIsSeperator(_name)) {
-        _isSeperator = true;
+    auto _labelNode = config->getChild("label");
+    if (_labelNode) {
+        _labelNode->addChangeListener(this);
     }
+    _label = FGMenuBar::getLocalizedLabel(config);
 
     _checkedNode = config->getChild("checked");
     if (_checkedNode) {
@@ -199,6 +217,8 @@ void NasalMenuItem::valueChanged(SGPropertyNode* n)
         _enabled = _enabledNode->getBoolValue();
     } else if (n == _checkedNode) {
         _checked = _checkedNode->getBoolValue();
+    } else if (n == _labelNode) {
+        _label = FGMenuBar::getLocalizedLabel(_labelNode->getParent());
     } else if (n->getNameString() == "name") {
         _name = n->getStringValue();
     }
@@ -233,6 +253,12 @@ void NasalMenu::initFromNode(SGPropertyNode_ptr config)
     }
     _enabledNode->addChangeListener(this);
 
+    auto _labelNode = config->getChild("label");
+    if (_labelNode) {
+        _labelNode->addChangeListener(this);
+    }
+    _label = FGMenuBar::getLocalizedLabel(config);
+
     for (auto i : config->getChildren("item")) {
         auto it = new NasalMenuItem;
         it->initFromNode(i);
@@ -251,6 +277,8 @@ void NasalMenu::valueChanged(SGPropertyNode* n)
 {
     if (n == _enabledNode) {
         _enabled = n->getBoolValue();
+    } else if (n == _labelNode) {
+        _label = FGMenuBar::getLocalizedLabel(n->getParent());
     }
 }
 
@@ -351,10 +379,12 @@ void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
         .member("seperator", &NasalMenuItem::isSeperator)
         .member("shortcut", &NasalMenuItem::shortcut)
         .member("submenu", &NasalMenuItem::submenu)
+        .member("label", &NasalMenuItem::label)
         .method("fire", &NasalMenuItem::fire);
 
     using MenuGhost = nasal::Ghost<NasalMenuPtr>;
     MenuGhost::init("gui.xml.Menu")
+        .member("label", &NasalMenu::label)
         .member("name", &NasalMenu::name)
         .member("enabled", &NasalMenu::isEnabled)
         .member("items", &NasalMenu::items);
