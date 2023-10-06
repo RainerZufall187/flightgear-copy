@@ -20,7 +20,7 @@
 #include <Main/globals.hxx>
 #include <Scripting/NasalSys.hxx>
 
-static bool nameIsSeperator(const std::string& n)
+static bool nameIsSeparator(const std::string& n)
 {
     return simgear::strutils::starts_with(n, "----");
 }
@@ -64,9 +64,9 @@ public:
         return _checked;
     }
 
-    bool isSeperator() const
+    bool isSeparator() const
     {
-        return _isSeperator;
+        return _isSeparator;
     }
 
     bool isCheckable() const
@@ -97,7 +97,7 @@ private:
     std::string _name;
     std::string _label;
     std::string _shortcut;
-    bool _isSeperator = false;
+    bool _isSeparator = false;
     bool _isCheckable = false;
     bool _enabled = true;
     bool _checked = false;
@@ -161,8 +161,8 @@ void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
         _name = n->getStringValue();
         n->addChangeListener(this);
 
-        if (n->getBoolValue("seperator") || nameIsSeperator(_name)) {
-            _isSeperator = true;
+        if (n->getBoolValue("separator") || nameIsSeparator(_name)) {
+            _isSeparator = true;
         }
     }
 
@@ -376,7 +376,7 @@ void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
         .member("enabled", &NasalMenuItem::isEnabled)
         .member("checked", &NasalMenuItem::isChecked)
         .member("checkable", &NasalMenuItem::isCheckable)
-        .member("seperator", &NasalMenuItem::isSeperator)
+        .member("separator", &NasalMenuItem::isSeparator)
         .member("shortcut", &NasalMenuItem::shortcut)
         .member("submenu", &NasalMenuItem::submenu)
         .member("label", &NasalMenuItem::label)
