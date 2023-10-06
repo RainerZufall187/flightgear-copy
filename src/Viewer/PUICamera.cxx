@@ -333,6 +333,53 @@ void PUICamera::init(osg::Group* parent, osgViewer::View* view)
     stateSet->setMode(GL_FOG, osg::StateAttribute::OFF);
     stateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
 
+    bool use_vertex_attribute_aliasing = false;
+    auto guiCamera = getGUICamera(CameraGroup::getDefault());
+    if (guiCamera) {
+        auto gc = guiCamera->getGraphicsContext();
+        use_vertex_attribute_aliasing = gc->getState()->getUseVertexAttributeAliasing();
+    }
+
+    if (use_vertex_attribute_aliasing) {
+        const std::string vertex_source =
+            "#version 330 core\n"
+            "\n"
+            "layout(location = 0) in vec4 pos;\n"
+            "layout(location = 3) in vec4 multitexcoord0;\n"
+            "\n"
+            "out vec2 texcoord;\n"
+            "\n"
+            "uniform mat4 osg_ModelViewProjectionMatrix;\n"
+            "\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = osg_ModelViewProjectionMatrix * pos;\n"
+            "    texcoord = multitexcoord0.st;\n"
+            "}\n";
+        osg::Shader *vertex_shader = new osg::Shader(osg::Shader::VERTEX, vertex_source);
+
+        const std::string fragment_source =
+            "#version 330 core\n"
+            "\n"
+            "layout(location = 0) out vec4 fragColor;\n"
+            "\n"
+            "in vec2 texcoord;\n"
+            "\n"
+            "uniform sampler2D tex;\n"
+            "\n"
+            "void main()\n"
+            "{\n"
+            "    fragColor = texture(tex, texcoord);\n"
+            "}\n";
+        osg::Shader *fragment_shader = new osg::Shader(osg::Shader::FRAGMENT, fragment_source);
+
+        osg::Program *program = new osg::Program;
+        program->addShader(vertex_shader);
+        program->addShader(fragment_shader);
+        stateSet->setAttribute(program);
+        stateSet->addUniform(new osg::Uniform("tex", 0));
+    }
+
 // geode to display the FSquad in the parent scene (which is GUI camera)
     osg::Geode* fsQuadGeode = new osg::Geode;
     fsQuadGeode->addDrawable(_fullScreenQuad);
