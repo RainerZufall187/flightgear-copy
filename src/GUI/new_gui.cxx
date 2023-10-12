@@ -309,7 +309,9 @@ NewGUI::showDialog (const string &name)
     flightgear::addSentryBreadcrumb("showing GUI dialog:" + name, "info");
     try {
         if (_usePUI) {
+#if defined(HAVE_PUI)
             _active_dialogs[name] = new FGPUIDialog(getDialogProperties(name));
+#endif
         } else {
             SGSharedPtr<FGPUICompatDialog> pcd = new FGPUICompatDialog(getDialogProperties(name));
             if (pcd->init()) {
