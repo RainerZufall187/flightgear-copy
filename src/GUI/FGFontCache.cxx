@@ -19,7 +19,10 @@
 
 // this is our one in 3rdparty
 #include "fnt.h"
+
+#if defined(HAVE_PUI)
 #include "FlightGear_pu.h"
+#endif
 
 #include <simgear/props/props.hxx>
 #include <simgear/misc/sg_dir.hxx>
@@ -32,11 +35,11 @@
 
 static std::unique_ptr<FGFontCache> global_fontCacheInstance;
 
-
+#if defined(HAVE_PUI)
 extern puFont FONT_HELVETICA_14;
 extern puFont FONT_SANS_12B;
 extern puFont FONT_HELVETICA_12;
-
+#endif
 namespace
 {
 struct GuiFont
@@ -52,10 +55,12 @@ const std::initializer_list<GuiFont> guiFonts = {
     {"TIMES_10", &PUFONT_TIMES_ROMAN_10},
     {"TIMES_24", &PUFONT_TIMES_ROMAN_24},
     {"HELVETICA_10", &PUFONT_HELVETICA_10},
+    {"HELVETICA_18", &PUFONT_HELVETICA_18},
+#if defined(HAVE_PUI)
     {"HELVETICA_12", &FONT_HELVETICA_12},
     {"HELVETICA_14", &FONT_HELVETICA_14},
-    {"HELVETICA_18", &PUFONT_HELVETICA_18},
     {"SANS_12B", &FONT_SANS_12B},
+#endif
 };
 }
 
