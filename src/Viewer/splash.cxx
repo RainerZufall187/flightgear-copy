@@ -79,6 +79,42 @@ SplashScreen::SplashScreen() :
     _splashLayer->setAlphaMode(osgXR::CompositionLayer::BLEND_ALPHA_UNPREMULT);
 #endif
 
+    const std::string vertex_source =
+        "#version 330 core\n"
+        "\n"
+        "layout(location = 0) in vec4 pos;\n"
+        "layout(location = 3) in vec4 multitexcoord0;\n"
+        "\n"
+        "out vec2 texcoord;\n"
+        "\n"
+        "uniform mat4 osg_ModelViewProjectionMatrix;\n"
+        "\n"
+        "void main()\n"
+        "{\n"
+        "    gl_Position = osg_ModelViewProjectionMatrix * pos;\n"
+        "    texcoord = multitexcoord0.st;\n"
+        "}\n";
+    osg::Shader* vertex_shader = new osg::Shader(osg::Shader::VERTEX, vertex_source);
+
+    const std::string fragment_source =
+        "#version 330 core\n"
+        "\n"
+        "layout(location = 0) out vec4 fragColor;\n"
+        "\n"
+        "in vec2 texcoord;\n"
+        "\n"
+        "uniform sampler2D tex;\n"
+        "\n"
+        "void main()\n"
+        "{\n"
+        "    fragColor = texture(tex, texcoord);\n"
+        "}\n";
+    osg::Shader* fragment_shader = new osg::Shader(osg::Shader::FRAGMENT, fragment_source);
+
+    _program = new osg::Program();
+    _program->addShader(vertex_shader);
+    _program->addShader(fragment_shader);
+
     setName("splashGroup");
     setUpdateCallback(new SplashScreenUpdateCallback);
 }
@@ -244,6 +280,16 @@ void SplashScreen::createNodes()
     stateSet->setRenderBinDetails(1000, "RenderBin");
     stateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
 
+    bool use_vertex_attribute_aliasing = false;
+    if (guiCamera) {
+        auto gc = guiCamera->getGraphicsContext();
+        use_vertex_attribute_aliasing = gc->getState()->getUseVertexAttributeAliasing();
+    }
+    if (use_vertex_attribute_aliasing) {
+        stateSet->setAttribute(_program);
+        stateSet->addUniform(new osg::Uniform("tex", 0));
+    }
+
     if (useSRGB) {
         stateSet->setMode(GL_FRAMEBUFFER_SRGB, osg::StateAttribute::ON);
     }
@@ -359,6 +405,17 @@ osg::ref_ptr<osg::Camera> SplashScreen::createFBOCamera()
     stateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
     stateSet->setAttribute(new osg::Depth(osg::Depth::ALWAYS, 0, 1, false));
     stateSet->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+
+    bool use_vertex_attribute_aliasing = false;
+    osg::Camera* guiCamera = flightgear::getGUICamera(flightgear::CameraGroup::getDefault());
+    if (guiCamera) {
+        auto gc = guiCamera->getGraphicsContext();
+        use_vertex_attribute_aliasing = gc->getState()->getUseVertexAttributeAliasing();
+    }
+    if (use_vertex_attribute_aliasing) {
+        stateSet->setAttribute(_program);
+        stateSet->addUniform(new osg::Uniform("tex", 0));
+    }
 
     return c;
 }
