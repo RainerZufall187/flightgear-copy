@@ -85,6 +85,19 @@ main(int argc, char** argv)
     // use an ArgumentParser object to manage the program arguments.
     osg::ArgumentParser arguments(&argc, argv);
 
+    if (arguments.read("--help")) {
+        std::cout << "Usage: fgelev [Options...]\n\nQuery the elevation of lon/lat points in the scenery." << std::endl;;
+        std::cout << "Input is read from STDIN line by line in the format <id> <lon> <lat>.  Output is to STDOUT in the format <id>: <elevation-m> [solid|-]" << std::endl << std::endl;
+        std::cout << "Optional arguments:" << std::endl;
+        std::cout << "\t[--expire N]\t\tExpire items in the cache after N requests (default 10). Use to control memory occupancy." << std::endl;
+        std::cout << "\t[--print-solidness]\tOutput whether the location is on solid ground (\"solid\") or not (\"-\")." << std::endl;
+        std::cout << "\t[--fg-root <path>]\tSet the FG data directory.  Used to retrieve terrain material information. Default to $FG_ROOT." << std::endl;
+        std::cout << "\t[--fg-scenery <path>]\tSet the scenery directory.  Defaults to $FG_SCENERY, or $FG_ROOT/Scenery if $FG_SCENERY not set." << std::endl;
+        std::cout << "\t[--use-vpb]\t\tUse VirtualPlanetBuilder (aka WS3.0)." << std::endl;
+        std::cout << "\t[--tile-file <file>]\t\tSet the VPB (WS3.0) tile to read." << std::endl;
+        return EXIT_FAILURE;
+    }
+
     unsigned expire;
     if (arguments.read("--expire", expire)) {
     } else expire = 10;
