@@ -101,6 +101,19 @@ static bool
 do_switch_aircraft (const SGPropertyNode * arg, SGPropertyNode * root)
 {
     fgSetString("/sim/aircraft", arg->getStringValue("aircraft"));
+
+    // we could validate the new aircraft is find-able, and if not, bail out
+    // of the command at this point? Might give a better user experience?
+    // would need something like bool fgIsValidAircraft(name, dir);
+    // which could be cooked up by modifying FindAndCacheAircraft
+
+    // We assume that we are changing the aircraft, so we remove the aircraft path.
+    // this forces aircraft-dir to be recomputed by a full search as the user hopefully
+    // expects. 
+    // We could allow pasing the dir as an optional argument to this command, if that
+    // is ever needed in the future.
+    fgGetNode("/sim")->removeChild("aircraft-dir");
+
     // start a reset
     fgResetIdleState();
     return true;

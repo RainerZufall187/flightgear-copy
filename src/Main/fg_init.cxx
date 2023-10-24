@@ -796,6 +796,13 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
 
     SGSharedPtr<Root> pkgRoot(globals->packageRoot());
     SGPropertyNode* aircraftProp = fgGetNode("/sim/aircraft", true);
+    SGPropertyNode* aircraftDirProp = fgGetNode("/sim/aircraft-dir", true);
+
+    // ensure aircraft-dir survives reset, so we find the same aircraft
+    // after a reset as we did prior to it. Without this, aircraft
+    // can unintentionally change on a reset
+    aircraftDirProp->setAttribute(SGPropertyNode::PRESERVE, true);
+
     const string fullyQualifiedAircraftId = fgGetString("/sim/aircraft-id");
     string aircraftId = fullyQualifiedAircraftId.empty() ? aircraftProp->getStringValue() : fullyQualifiedAircraftId;
 
@@ -1404,7 +1411,6 @@ void fgStartNewReset()
                "Some errors restoring preserved state (read-only props?)" );
     }
 
-    fgGetNode("/sim")->removeChild("aircraft-dir");
     fgInitAircraftPaths(true);
     fgInitAircraft(true, false /* not from launcher */);
     
