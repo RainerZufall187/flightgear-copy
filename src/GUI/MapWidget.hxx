@@ -65,6 +65,7 @@ private:
   void paintRoute();
   void paintRuler();
   void drawFlightHistory();
+  void updateFlightHistory();
   
   void drawGPSData();
   void drawNavRadio(SGPropertyNode_ptr radio);
@@ -138,6 +139,7 @@ private:
   bool _hasPanned;
   bool _aircraftUp;
   int _displayHeading;
+  bool _drawAircraft;
     
   SGGeod _projectionCenter;
   Projection _projection;

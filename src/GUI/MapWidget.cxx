@@ -518,6 +518,7 @@ void MapWidget::setProperty(SGPropertyNode_ptr prop)
   createPropertyIfRequired(_root, "centre-on-aircraft", true);
   createPropertyIfRequired(_root, "draw-data", false);
   createPropertyIfRequired(_root, "draw-pois", true);
+  createPropertyIfRequired(_root, "draw-aircraft", true);
   createPropertyIfRequired(_root, "draw-flight-history", false);
   createPropertyIfRequired(_root, "magnetic-headings", true);
   createPropertyIfRequired(_root, "key-pan", true);
@@ -658,6 +659,7 @@ void MapWidget::zoomOut()
 
 void MapWidget::update()
 {
+    _drawAircraft = _root->getBoolValue("draw-aircraft");
     _aircraft = globals->get_aircraft_position();
     
     bool mag = _root->getBoolValue("magnetic-headings");
@@ -670,7 +672,7 @@ void MapWidget::update()
         _root->setBoolValue("centre-on-aircraft", false);
         _hasPanned = false;
     }
-    else if (_root->getBoolValue("centre-on-aircraft")) {
+    else if (_root->getBoolValue("centre-on-aircraft") && _drawAircraft) {
         _projectionCenter = _aircraft;
     }
     
@@ -678,7 +680,7 @@ void MapWidget::update()
     _magVar->update(_projectionCenter, julianDate);
     
     _aircraftUp = _root->getBoolValue("aircraft-heading-up");
-    if (_aircraftUp) {
+    if (_aircraftUp && _drawAircraft) {
         _upHeading = fgGetDouble("/orientation/heading-deg");
     } else {
         _upHeading = 0.0;
@@ -696,12 +698,7 @@ void MapWidget::update()
     // symbols.
     _drawRangeNm = SGGeodesy::distanceNm(_projectionCenter, topLeft) + 10.0;
   
-    auto history = globals->get_subsystem<FGFlightHistory>();
-    if (history && _root->getBoolValue("draw-flight-history")) {
-        _flightHistoryPath = history->pathForHistory();
-    } else {
-        _flightHistoryPath.clear();
-    }
+    updateFlightHistory();
 
 // make spatial queries. This can trigger loading of XML files, etc, so we do
 // not want to do it in draw(), which can be called from an arbitrary OSG
@@ -743,6 +740,19 @@ void MapWidget::update()
     _itemsToDraw.swap(newItemsToDraw);
     
     updateAIObjects();
+}
+
+void MapWidget::updateFlightHistory()
+{
+    if (_drawAircraft && _root->getBoolValue("draw-flight-history")) {
+        auto history = globals->get_subsystem<FGFlightHistory>();
+        if (history) {
+            _flightHistoryPath = history->pathForHistory();
+            return;
+        }
+    }
+
+    _flightHistoryPath.clear();
 }
 
 void MapWidget::updateAIObjects()
@@ -793,7 +803,7 @@ void MapWidget::draw(int dx, int dy)
 
   drawLatLonGrid();
 
-  if (_aircraftUp) {
+  if (_aircraftUp && _drawAircraft) {
     int textHeight = legendFont.getStringHeight() + 5;
 
     // draw heading line
@@ -813,10 +823,10 @@ void MapWidget::draw(int dx, int dy)
   drawGPSData();
   drawNavRadio(fgGetNode("/instrumentation/nav[0]", false));
   drawNavRadio(fgGetNode("/instrumentation/nav[1]", false));
-  paintAircraftLocation(_aircraft);
   drawFlightHistory();
   paintRoute();
   paintRuler();
+  paintAircraftLocation(_aircraft);
 
   drawData();
 
@@ -826,7 +836,7 @@ void MapWidget::draw(int dx, int dy)
 
 void MapWidget::paintRuler()
 {
-  if (_clickGeod == SGGeod()) {
+  if (_clickGeod == SGGeod() || !_drawAircraft) {
     return;
   }
 
@@ -853,6 +863,10 @@ void MapWidget::paintRuler()
 
 void MapWidget::paintAircraftLocation(const SGGeod& aircraftPos)
 {
+  if (!_drawAircraft) {
+    return;
+  }
+
   SGVec2d loc = project(aircraftPos);
 
   double hdg = fgGetDouble("/orientation/heading-deg");
@@ -1065,39 +1079,43 @@ void MapWidget::drawLatLonGrid()
 
 void MapWidget::drawGPSData()
 {
-  std::string gpsMode = _gps->getStringValue("mode");
-
-  SGGeod wp0Geod = SGGeod::fromDeg(
-        _gps->getDoubleValue("wp/wp[0]/longitude-deg"),
-        _gps->getDoubleValue("wp/wp[0]/latitude-deg"));
-
-  SGGeod wp1Geod = SGGeod::fromDeg(
-        _gps->getDoubleValue("wp/wp[1]/longitude-deg"),
-        _gps->getDoubleValue("wp/wp[1]/latitude-deg"));
-
 // draw track line
-  double gpsTrackDeg = _gps->getDoubleValue("indicated-track-true-deg");
-  double gpsSpeed = _gps->getDoubleValue("indicated-ground-speed-kt");
-  double az2;
+  if (_drawAircraft) {
+    double gpsSpeed = _gps->getDoubleValue("indicated-ground-speed-kt");
 
-  if (gpsSpeed > 3.0) { // only draw track line if valid
-    SGGeod trackRadial;
-    SGGeodesy::direct(_aircraft, gpsTrackDeg, _drawRangeNm * SG_NM_TO_METER, trackRadial, az2);
+    if (gpsSpeed > 3.0) { // only draw track line if valid
+      double gpsTrackDeg = _gps->getDoubleValue("indicated-track-true-deg");
+      double az2;
 
-    glColor3f(1.0, 1.0, 0.0);
-    glEnable(GL_LINE_STIPPLE);
-    glLineStipple(1, 0x00FF);
-    drawLine(project(_aircraft), project(trackRadial));
-    glDisable(GL_LINE_STIPPLE);
+      SGGeod trackRadial;
+      SGGeodesy::direct(_aircraft, gpsTrackDeg, _drawRangeNm * SG_NM_TO_METER, trackRadial, az2);
+
+      glColor3f(1.0, 1.0, 0.0);
+      glEnable(GL_LINE_STIPPLE);
+      glLineStipple(1, 0x00FF);
+      drawLine(project(_aircraft), project(trackRadial));
+      glDisable(GL_LINE_STIPPLE);
+    }
   }
 
+  std::string gpsMode = _gps->getStringValue("mode");
+
   if (gpsMode == "dto") {
+    SGGeod wp0Geod = SGGeod::fromDeg(
+        _gps->getDoubleValue("wp/wp[0]/longitude-deg"),
+        _gps->getDoubleValue("wp/wp[0]/latitude-deg")
+    );
+
+    SGGeod wp1Geod = SGGeod::fromDeg(
+        _gps->getDoubleValue("wp/wp[1]/longitude-deg"),
+        _gps->getDoubleValue("wp/wp[1]/latitude-deg")
+    );
+
     SGVec2d wp0Pos = project(wp0Geod);
     SGVec2d wp1Pos = project(wp1Geod);
 
     glColor3f(1.0, 0.0, 1.0);
     drawLine(wp0Pos, wp1Pos);
-
   }
 
   if (_gps->getBoolValue("scratch/valid")) {
