@@ -36,8 +36,6 @@
 #include <osg/MatrixTransform>
 #include <osg/PositionAttitudeTransform>
 #include <osg/CameraView>
-#include <osgTerrain/TerrainTile>
-#include <osgTerrain/Terrain>
 
 #include <simgear/sg_inlines.h>
 #include <simgear/constants.h>
@@ -112,6 +110,7 @@ public:
         
         mSubTreeCollector.popNodeList(parentNodeList);
     }
+    
     virtual void apply(osg::Transform& transform)
     { handleTransform(transform); }
     virtual void apply(osg::Camera& camera)
@@ -371,7 +370,7 @@ FGGroundCache::prepare_ground_cache(double startSimTime, double endSimTime,
         found_ground = true;
     } else if (_localBvhTree) {
         // We have nothing below us, so try starting with the lowest point
-        // upwards for a coarse altitude value
+        // upwards for a croase altitude value
         SGLineSegmentd line(pt + reference_vehicle_radius*down, pt - 1e3*down);
         simgear::BVHLineSegmentVisitor lineSegmentVisitor(line, startSimTime);
         _localBvhTree->accept(lineSegmentVisitor);
@@ -508,7 +507,6 @@ public:
     }
     virtual void apply(BVHLineGeometry& node) { }
     virtual void apply(BVHStaticGeometry& node) { }
-    virtual void apply(BVHTerrainTile& node) { }
     
     virtual void apply(const BVHStaticBinary&, const BVHStaticData&) { }
     virtual void apply(const BVHStaticTriangle&, const BVHStaticData&) { }
@@ -637,8 +635,8 @@ public:
         _angularVelocity = SGVec3d::zeros();
         _haveLineSegment = true;
     }
-    virtual void apply(BVHStaticGeometry& node) { }
-    virtual void apply(BVHTerrainTile& node) { }
+    virtual void apply(BVHStaticGeometry& node)
+    { }
     
     virtual void apply(const BVHStaticBinary&, const BVHStaticData&) { }
     virtual void apply(const BVHStaticTriangle&, const BVHStaticData&) { }
@@ -879,8 +877,8 @@ public:
         _angularVelocity = SGVec3d::zeros();
         _wire = &node;
     }
-    virtual void apply(BVHStaticGeometry& node) { }
-    virtual void apply(BVHTerrainTile& node) { }
+    virtual void apply(BVHStaticGeometry& node)
+    { }
     
     virtual void apply(const BVHStaticBinary&, const BVHStaticData&) { }
     virtual void apply(const BVHStaticTriangle&, const BVHStaticData&) { }
@@ -1005,7 +1003,6 @@ public:
         _haveLineSegment = true;
     }
     virtual void apply(BVHStaticGeometry&) { }
-    virtual void apply(BVHTerrainTile&) { }
     
     virtual void apply(const BVHStaticBinary&, const BVHStaticData&) { }
     virtual void apply(const BVHStaticTriangle&, const BVHStaticData&) { }

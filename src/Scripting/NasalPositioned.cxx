@@ -707,20 +707,7 @@ static naRef f_geodinfo(naContext c, naRef me, int argc, naRef* args)
     HASHSET("load_resistance", 15, naNum(mat->get_load_resistance()));
     HASHSET("bumpiness", 9, naNum(mat->get_bumpiness()));
     HASHSET("light_coverage", 14, naNum(mat->get_light_coverage()));
-  } else if (material) {
-    matdata = naNewHash(c);
-    naRef names = naNewVector(c);
-    naVec_append(names, stringToNasal(c, ""));
-
-    HASHSET("region", 6, stringToNasal(c, ""));
-    HASHSET("names", 5, names);
-    HASHSET("solid", 5, naNum(material->get_solid()));
-    HASHSET("friction_factor", 15, naNum(material->get_friction_factor()));
-    HASHSET("rolling_friction", 16, naNum(material->get_rolling_friction()));
-    HASHSET("load_resistance", 15, naNum(material->get_load_resistance()));
-    HASHSET("bumpiness", 9, naNum(material->get_bumpiness()));
   }
-
   naVec_append(vec, matdata);
   return vec;
 #undef HASHSET
