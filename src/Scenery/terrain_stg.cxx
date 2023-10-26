@@ -32,6 +32,7 @@
 #include <osg/PositionAttitudeTransform>
 #include <osg/CameraView>
 #include <osg/LOD>
+#include <osgTerrain/TerrainTile>
 
 #include <osgViewer/Viewer>
 
@@ -39,6 +40,7 @@
 #include <simgear/sg_inlines.h>
 #include <simgear/debug/logstream.hxx>
 #include <simgear/scene/tgdb/userdata.hxx>
+#include <simgear/scene/tgdb/VPBTechnique.hxx>
 #include <simgear/scene/material/matlib.hxx>
 #include <simgear/scene/material/mat.hxx>
 #include <simgear/scene/util/SGNodeMasks.hxx>
@@ -49,6 +51,7 @@
 
 #include <simgear/bvh/BVHNode.hxx>
 #include <simgear/bvh/BVHLineSegmentVisitor.hxx>
+#include <simgear/bvh/BVHTerrainTile.hxx>
 #include <simgear/structure/commands.hxx>
 
 #include <Viewer/renderer.hxx>
@@ -124,6 +127,14 @@ public:
 
         traverse(group);
         addBoundingVolume(group);
+
+        if (_haveHit && dynamic_cast<osgTerrain::TerrainTile*>(&group) && ! _material) {
+            // In the case of TerrainTiles, we do not have material information within the mesh itself.
+            // So instead it must be retrieved from the raster.
+            osgTerrain::TerrainTile* tile = dynamic_cast<osgTerrain::TerrainTile*>(&group);
+            simgear::VPBTechnique* technique = tile ? dynamic_cast<simgear::VPBTechnique*>(tile->getTerrainTechnique()) : 0;
+            _material = technique ? technique->getMaterial(toOsg(_lineSegment.getEnd())) : 0;
+        }
     }
 
     virtual void apply(osg::Transform& transform)
