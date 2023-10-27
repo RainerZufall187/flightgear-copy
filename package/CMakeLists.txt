@@ -14,7 +14,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
     # generate a metainfo file corresponding to this release
     configure_file (
-        "${CMAKE_CURRENT_SOURCE_DIR}/org.flightgear.FlightGear.metainfo.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/org.flightgear.FlightGear.metainfo.xml.in"
         "${CMAKE_CURRENT_BINARY_DIR}/org.flightgear.FlightGear.metainfo.xml"
     )
 
