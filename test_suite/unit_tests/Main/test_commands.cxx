@@ -29,7 +29,7 @@ void CommandsTests::setUp()
 
 void CommandsTests::tearDown()
 {
-    delete SGCommandMgr::instance();
+    FGTestApi::tearDown::shutdownTestGlobals();
 }
 
 void CommandsTests::testPropertyAdjustCommand()

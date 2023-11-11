@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileName: CommStation.cxx
+ * SPDX-FileComment: class describing a single comm station in the Nav DB
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
 #include "config.h"
 
 #include "CommStation.hxx"

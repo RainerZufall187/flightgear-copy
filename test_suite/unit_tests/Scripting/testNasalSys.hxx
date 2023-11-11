@@ -40,7 +40,10 @@ class NasalSysTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testKeywordArgInHash);
     CPPUNIT_TEST(testNullAccess);
     CPPUNIT_TEST(testNullishChain);
+    CPPUNIT_TEST(testFindComm);
     CPPUNIT_TEST_SUITE_END();
+
+    bool checkNoNasalErrors();
 
 public:
     // Set up function for each test.
@@ -59,6 +62,7 @@ public:
     void testKeywordArgInHash();
     void testNullAccess();
     void testNullishChain();
+    void testFindComm();
 };
 
 #endif  // _FG_NASALSYS_UNIT_TESTS_HXX

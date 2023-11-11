@@ -69,6 +69,9 @@ static naGhostType TaxiwayGhostType = { positionedGhostDestroy, "taxiway", runwa
 static const char* fixGhostGetMember(naContext c, void* g, naRef field, naRef* out);
 static naGhostType FixGhostType = { positionedGhostDestroy, "fix", fixGhostGetMember, nullptr };
 
+static const char* commGhostGetMember(naContext c, void* g, naRef field, naRef* out);
+static naGhostType CommGhostType = {positionedGhostDestroy, "comm", commGhostGetMember, nullptr};
+
 static void hashset(naContext c, naRef hash, const char* key, naRef val)
 {
   naRef s = naNewString(c);
@@ -88,8 +91,8 @@ FGPositioned* positionedGhost(naRef r)
     if ((naGhost_type(r) == &AirportGhostType) ||
         (naGhost_type(r) == &NavaidGhostType) ||
         (naGhost_type(r) == &RunwayGhostType) ||
-        (naGhost_type(r) == &FixGhostType))
-    {
+        (naGhost_type(r) == &FixGhostType) ||
+        (naGhost_type(r) == &CommGhostType)) {
         return (FGPositioned*) naGhost_ptr(r);
     }
 
@@ -131,6 +134,12 @@ static FGFix* fixGhost(naRef r)
   return 0;
 }
 
+static flightgear::CommStation* commGhost(naRef r)
+{
+  if (naGhost_type(r) == &CommGhostType)
+    return (flightgear::CommStation*)naGhost_ptr(r);
+  return nullptr;
+}
 
 static void positionedGhostDestroy(void* g)
 {
@@ -203,6 +212,16 @@ naRef ghostForFix(naContext c, const FGFix* r)
   return naNewGhost2(c, &FixGhostType, (void*) r);
 }
 
+naRef ghostForComm(naContext c, const flightgear::CommStation* comm)
+{
+  if (!c) {
+    return naNil();
+  }
+
+  FGPositioned::get(comm); // take a ref
+  return naNewGhost2(c, &CommGhostType, (void*)comm);
+}
+
 naRef ghostForPositioned(naContext c, FGPositionedRef pos)
 {
     if (!pos) {
@@ -222,6 +241,16 @@ naRef ghostForPositioned(naContext c, FGPositionedRef pos)
         return ghostForHelipad(c, fgpositioned_cast<FGHelipad>(pos));
     case FGPositioned::RUNWAY:
         return ghostForRunway(c, fgpositioned_cast<FGRunway>(pos));
+    case FGPositioned::FREQ_APP_DEP:
+    case FGPositioned::FREQ_AWOS:
+    case FGPositioned::FREQ_GROUND:
+    case FGPositioned::FREQ_TOWER:
+    case FGPositioned::FREQ_ATIS:
+    case FGPositioned::FREQ_CLEARANCE:
+    case FGPositioned::FREQ_UNICOM:
+    case FGPositioned::FREQ_ENROUTE:
+        return ghostForComm(c, fgpositioned_cast<flightgear::CommStation>(pos));
+
     default:
         SG_LOG(SG_NASAL, SG_DEV_ALERT, "Type lacks Nasal ghost mapping:" << pos->typeString());
         return naNil();
@@ -386,6 +415,31 @@ static const char* fixGhostGetMember(naContext c, void* g, naRef field, naRef* o
 
   return "";
 }
+
+static const char* commGhostGetMember(naContext c, void* g, naRef field, naRef* out)
+{
+  const char* fieldName = naStr_data(field);
+  auto comm = static_cast<flightgear::CommStation*>(g);
+
+  if (!strcmp(fieldName, "id"))
+    *out = stringToNasal(c, comm->ident());
+  else if (!strcmp(fieldName, "lat"))
+    *out = naNum(comm->latitude());
+  else if (!strcmp(fieldName, "lon"))
+    *out = naNum(comm->longitude());
+  else if (!strcmp(fieldName, "type")) {
+    *out = stringToNasal(c, comm->nameForType(comm->type()));
+  } else if (!strcmp(fieldName, "name"))
+    *out = stringToNasal(c, comm->name());
+  else if (!strcmp(fieldName, "frequency")) {
+    *out = naNum(comm->freqMHz());
+  } else {
+    return 0;
+  }
+
+  return "";
+}
+
 
 static bool hashIsCoord(naRef h)
 {
@@ -1364,6 +1418,34 @@ static naRef f_findNavaidsByFrequency(naContext c, naRef me, int argc, naRef* ar
   return r;
 }
 
+static naRef f_findCommByFrequency(naContext c, naRef me, int argc, naRef* args)
+{
+  int argOffset = 0;
+  SGGeod pos = globals->get_aircraft_position();
+  argOffset += geodFromArgs(args, 0, argc, pos);
+
+  if (!naIsNum(args[argOffset])) {
+    naRuntimeError(c, "findCommByFrequencyMhz expectes frequency (in Mhz) as arg %d", argOffset);
+  }
+
+  // initial filter is all comm types
+  FGPositioned::TypeFilter filter(FGPositioned::FREQ_GROUND, FGPositioned::FREQ_UNICOM);
+
+  double freqMhz = args[argOffset++].num;
+  if (argOffset < argc) {
+    // allow specifying an explicitly type by name
+    filter = FGPositioned::TypeFilter{FGPositioned::typeFromName(naStr_data(args[argOffset]))};
+  }
+
+  auto ref = NavDataCache::instance()->findCommByFreq(static_cast<int>(freqMhz * 1000), pos, &filter);
+  if (!ref) {
+    return naNil();
+  }
+
+  auto comm = fgpositioned_cast<flightgear::CommStation>(ref);
+  return ghostForComm(c, comm);
+}
+
 static naRef f_findNavaidsByIdent(naContext c, naRef me, int argc, naRef* args)
 {
   int argOffset = 0;
@@ -1600,33 +1682,36 @@ FGPositionedRef positionedFromArg(naRef ref)
 }
 
 // Table of extension functions.  Terminate with zeros.
-static struct { const char* name; naCFunction func; } funcs[] = {
-  { "carttogeod", f_carttogeod },
-  { "geodtocart", f_geodtocart },
-  { "geodinfo", f_geodinfo },
-  { "formatLatLon", f_formatLatLon },
-  { "parseStringAsLatLonValue", f_parseStringAsLatLonValue},
-  { "get_cart_ground_intersection", f_get_cart_ground_intersection },
-  { "aircraftToCart", f_aircraftToCart },
-  { "airportinfo", f_airportinfo },
-  { "findAirportsWithinRange", f_findAirportsWithinRange },
-  { "findAirportsByICAO", f_findAirportsByICAO },
-  { "navinfo", f_navinfo },
-  { "findNavaidsWithinRange", f_findNavaidsWithinRange },
-  { "findNDBByFrequencyKHz", f_findNDBByFrequency },
-  { "findNDBsByFrequencyKHz", f_findNDBsByFrequency },
-  { "findNavaidByFrequencyMHz", f_findNavaidByFrequency },
-  { "findNavaidsByFrequencyMHz", f_findNavaidsByFrequency },
-  { "findNavaidsByID", f_findNavaidsByIdent },
-  { "findFixesByID", f_findFixesByIdent },
-  { "findByIdent", f_findByIdent },
-  { "magvar", f_magvar },
-  { "courseAndDistance", f_courseAndDistance },
-  { "greatCircleMove", f_greatCircleMove },
-  { "tileIndex", f_tileIndex },
-  { "tilePath", f_tilePath },
-  { 0, 0 }
-};
+static struct {
+  const char* name;
+  naCFunction func;
+} funcs[] = {
+    {"carttogeod", f_carttogeod},
+    {"geodtocart", f_geodtocart},
+    {"geodinfo", f_geodinfo},
+    {"formatLatLon", f_formatLatLon},
+    {"parseStringAsLatLonValue", f_parseStringAsLatLonValue},
+    {"get_cart_ground_intersection", f_get_cart_ground_intersection},
+    {"aircraftToCart", f_aircraftToCart},
+    {"airportinfo", f_airportinfo},
+    {"findAirportsWithinRange", f_findAirportsWithinRange},
+    {"findAirportsByICAO", f_findAirportsByICAO},
+    {"navinfo", f_navinfo},
+    {"findNavaidsWithinRange", f_findNavaidsWithinRange},
+    {"findNDBByFrequencyKHz", f_findNDBByFrequency},
+    {"findNDBsByFrequencyKHz", f_findNDBsByFrequency},
+    {"findNavaidByFrequencyMHz", f_findNavaidByFrequency},
+    {"findNavaidsByFrequencyMHz", f_findNavaidsByFrequency},
+    {"findCommByFrequencyMHz", f_findCommByFrequency},
+    {"findNavaidsByID", f_findNavaidsByIdent},
+    {"findFixesByID", f_findFixesByIdent},
+    {"findByIdent", f_findByIdent},
+    {"magvar", f_magvar},
+    {"courseAndDistance", f_courseAndDistance},
+    {"greatCircleMove", f_greatCircleMove},
+    {"tileIndex", f_tileIndex},
+    {"tilePath", f_tilePath},
+    {0, 0}};
 
 
 naRef initNasalPositioned(naRef globals, naContext c)

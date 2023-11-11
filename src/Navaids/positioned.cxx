@@ -439,6 +439,14 @@ FGPositioned::TypeFilter::TypeFilter(std::initializer_list<Type> types)
     }
 }
 
+FGPositioned::TypeFilter::TypeFilter(Type aMinType, Type aMaxType)
+{
+    for (int t = aMinType; t <= aMaxType; t++) {
+        addType(static_cast<FGPositioned::Type>(t));
+    }
+}
+
+
 void FGPositioned::TypeFilter::addType(Type aTy)
 {
   if (aTy == INVALID) {

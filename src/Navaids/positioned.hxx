@@ -44,59 +44,63 @@ class FGPositioned : public SGReferenced
 public:
     static const PositionedID TRANSIENT_ID;
 
-  typedef enum {
-    INVALID = 0,
-    AIRPORT,
-    HELIPORT,
-    SEAPORT,
-    RUNWAY,
-    HELIPAD,
-    TAXIWAY,
-    PAVEMENT,
-    WAYPOINT,
-    FIX,
-    NDB,
-    VOR,
-    ILS,
-    LOC,
-    GS,
-    OM,
-    MM,
-    IM,
-/// important that DME & TACAN are adjacent to keep the TacanFilter
-/// efficient - DMEs are proxies for TACAN/VORTAC stations
-    DME,
-    TACAN,
-    MOBILE_TACAN,
-    OBSTACLE,
-/// an actual airport tower - not a radio comms facility!
-/// some airports have multiple towers, eg EHAM, although our data source
-/// doesn't necessarily include them     
-    TOWER,
-    FREQ_GROUND,
-    FREQ_TOWER,
-    FREQ_ATIS,
-    FREQ_AWOS,
-    FREQ_APP_DEP,
-    FREQ_ENROUTE,
-    FREQ_CLEARANCE,
-    FREQ_UNICOM,
-// groundnet items
-    PARKING,  ///< parking position - might be a gate, or stand
-    TAXI_NODE,
-// POI items
-    COUNTRY,
-    CITY,
-    TOWN,
-    VILLAGE,
-      
-    LAST_TYPE
-  } Type;
+    typedef enum {
+        INVALID = 0,
+        AIRPORT,
+        HELIPORT,
+        SEAPORT,
+        RUNWAY,
+        HELIPAD,
+        TAXIWAY,
+        PAVEMENT,
+        WAYPOINT,
+        FIX,
+        NDB,
+        VOR,
+        ILS,
+        LOC,
+        GS,
+        OM,
+        MM,
+        IM,
+        /// important that DME & TACAN are adjacent to keep the TacanFilter
+        /// efficient - DMEs are proxies for TACAN/VORTAC stations
+        DME,
+        TACAN,
+        MOBILE_TACAN,
+        OBSTACLE,
+        /// an actual airport tower - not a radio comms facility!
+        /// some airports have multiple towers, eg EHAM, although our data source
+        /// doesn't necessarily include them
+        TOWER,
+        //comm stations : if extending this, be sure to update the isType check in
+        // CommStation.hxx
+        FREQ_GROUND,
+        FREQ_TOWER,
+        FREQ_ATIS,
+        FREQ_AWOS,
+        FREQ_APP_DEP,
+        FREQ_ENROUTE,
+        FREQ_CLEARANCE,
+        FREQ_UNICOM,
+        // groundnet items
+        PARKING, ///< parking position - might be a gate, or stand
+        TAXI_NODE,
+        // POI items
+        COUNTRY,
+        CITY,
+        TOWN,
+        VILLAGE,
 
-  virtual ~FGPositioned();
-  
-  Type type() const
-  { return mType; }
+        LAST_TYPE
+    } Type;
+
+    virtual ~FGPositioned();
+
+    Type type() const
+    {
+        return mType;
+    }
 
   // True for the following types: AIRPORT, HELIPORT, SEAPORT.
   // False for other types, as well as if pos == nullptr.
@@ -177,7 +181,15 @@ public:
     TypeFilter(Type aTy = INVALID);
       
     TypeFilter(std::initializer_list<Type> types);
-      
+
+    /**
+     * @brief Construct a new Type Filter based on a sequential range of types
+     * 
+     * @param aMinType 
+     * @param aMaxType 
+     */
+    TypeFilter(Type aMinType, Type aMaxType);
+
     bool pass(FGPositioned* aPos) const override;
     
     Type minType() const override

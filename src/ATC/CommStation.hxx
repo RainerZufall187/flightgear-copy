@@ -1,5 +1,10 @@
-#ifndef FG_ATC_COMM_STATION_HXX
-#define FG_ATC_COMM_STATION_HXX
+/*
+ * SPDX-FileName: CommStation.hxx
+ * SPDX-FileComment: class describing a single comm station in the Nav DB
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#pragma once
 
 #include <Airports/airports_fwd.hxx>
 #include <Navaids/positioned.hxx>
@@ -24,13 +29,16 @@ public:
     double freqMHz() const;
     
     static CommStationRef findByFreq(int freqKhz, const SGGeod& pos, FGPositioned::Filter* filt = NULL);
+
+    static bool isType(FGPositioned::Type ty)
+    {
+        return (ty >= FGPositioned::FREQ_GROUND) && (ty <= FGPositioned::FREQ_UNICOM);
+    }
+
 private:
     int mRangeNM;
     int mFreqKhz;
     PositionedID mAirport;
 };
 
-} // of namespace flightgear
-
-#endif // of FG_ATC_COMM_STATION_HXX
-
+} // namespace flightgear

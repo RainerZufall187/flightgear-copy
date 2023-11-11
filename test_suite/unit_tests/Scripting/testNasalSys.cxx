@@ -29,6 +29,8 @@
 #include <Main/globals.hxx>
 #include <Main/util.hxx>
 
+#include <Airports/airport.hxx>
+
 #include <Scripting/NasalSys.hxx>
 
 #include <Main/FGInterpolator.hxx>
@@ -59,6 +61,12 @@ void NasalSysTests::tearDown()
     FGTestApi::tearDown::shutdownTestGlobals();
 }
 
+bool NasalSysTests::checkNoNasalErrors()
+{
+    auto nasalSys = globals->get_subsystem<FGNasalSys>();
+    auto errors = nasalSys->getAndClearErrorList();
+    return errors.empty();
+}
 
 // Test test
 void NasalSysTests::testStructEquality()
@@ -168,6 +176,31 @@ void NasalSysTests::testAirportGhost()
     CPPUNIT_ASSERT(ok);
 
 }
+
+void NasalSysTests::testFindComm()
+{
+    FGAirportRef apt = FGAirport::getByIdent("EDDM");
+    FGTestApi::setPositionAndStabilise(apt->geod());
+
+    auto nasalSys = globals->get_subsystem<FGNasalSys>();
+    nasalSys->getAndClearErrorList();
+
+    bool ok = FGTestApi::executeNasal(R"(
+        var comm = findCommByFrequencyMHz(123.125);
+        unitTest.assert_equal(comm.id, "ATIS");
+
+    # explicit filter, should't match
+        var noComm = findCommByFrequencyMHz(123.125, "tower");
+        unitTest.assert_equal(noComm, nil);
+
+    # match with filter
+        var comm2 = findCommByFrequencyMHz(121.725, "clearance");
+        unitTest.assert_equal(comm2.id, "CLNC DEL");
+    )");
+
+    CPPUNIT_ASSERT(ok && checkNoNasalErrors());
+}
+
 
 // https://sourceforge.net/p/flightgear/codetickets/2246/
 
