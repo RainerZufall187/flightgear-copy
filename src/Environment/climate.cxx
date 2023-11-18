@@ -100,6 +100,10 @@ void FGClimate::bind()
     _tiedProperties.Tie( "snow-level-m", &_snow_level);
     _tiedProperties.Tie( "wind-speed-mps", &_wind_speed);
     _tiedProperties.Tie( "wind-direction-deg", &_wind_direction);
+    _tiedProperties.Tie( "visibility-m", &_visibility_m);
+    _tiedProperties.Tie( "elevation-m", &_elevation_m);
+    _tiedProperties.Tie( "mist-fact", &_mist);
+    _tiedProperties.Tie( "fog-fact", &_fog);
 }
 
 void FGClimate::unbind ()
@@ -184,7 +188,7 @@ void FGClimate::update(double dt)
             color = image->getColor(s, t);
 
             // convert from color shades to koppen-classicfication
-            _gl.elevation_m = 5600.0*color[1];
+            _elevation_m = _gl.elevation_m = 5600.0*color[1];
             _gl.precipitation_annual = 150.0 + 9000.0*color[2];
             _code = static_cast<int>(floorf(255.0f*color[0]/4.0f));
             if (_code >= MAX_CLIMATE_CLASSES)
@@ -804,6 +808,39 @@ void FGClimate::set_environment()
 
     _set(_snow_level, 1000.0*_sl.temperature_mean/9.8);
 
+    // rough estimate
+    // Mist forms when the relative humidity is greater than about 70%
+    // Fog forms when the difference between air temperature and dew point
+    // is less than 2.5°C
+    double humidity, diff_temp_dewpoint;
+    if (1 || !_weather_update)
+    {
+        humidity = fgGetDouble("/environment/relative-humidity", 0.0);
+        diff_temp_dewpoint = fgGetDouble("/environment/temperature-degc", 0.0) -
+                        fgGetDouble("/environment/dewpoint-degc", 0.0);
+    }
+    else
+    {
+        humidity = _gl.relative_humidity;
+        diff_temp_dewpoint = _gl.temperature - _gl.dewpoint;
+    }
+
+    _mist = pow(4.17*std::max(0.01*humidity-0.76, 0.0), 0.03);
+    _fog = exp(-1.842*diff_temp_dewpoint);
+
+    if (1 || !_weather_update)
+    {
+        _visibility_m = fgGetDouble("/environment/visibility-m", _max_visibility_m);
+        if (_visibility_m > _max_visibility_m) {
+            _visibility_m = _max_visibility_m;
+        }
+    }
+    else
+    {
+        double val = 0.01*_mist + 0.99*_fog;
+        _visibility_m = _max_visibility_m*(1.0 - val);
+    }
+
     // snow chance based on latitude, mean temperature and monthly precipitation
     if (_gl.precipitation < 60.0) {
         precipitation = 0.0;
@@ -864,7 +901,7 @@ void FGClimate::set_environment()
             // https://weatherins.com/rain-guidelines/
             _wetness = 9.0*std::max(_gl.precipitation-50.0, 0.0)/990.0;
 
-            double diff = std::max(_gl.temperature - _gl.dewpoint, 1.0);
+            double diff = std::max(_gl.temperature - _gl.dewpoint, 2.5)/2.5;
             _wetness = std::min(_wetness/diff, 1.0);
         } else {
             _wetness = 0.0;
@@ -918,6 +955,10 @@ void FGClimate::set_environment()
         {
             fgSetDouble("/environment/season", 0.0);
         }
+
+        // HDR fog density
+        double fog = 3e7*pow(0.999, _visibility_m);
+        fgSetDouble("/sim/rendering/hdr/atmos/fog-density", fog);
     }
 
     // for material animation

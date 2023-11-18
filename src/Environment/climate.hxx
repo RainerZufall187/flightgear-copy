@@ -46,15 +46,15 @@ private:
         SGGeod pos;
 
         double elevation_m = 0.0;
-        double temperature = -99999.0;
-        double temperature_mean = -99999.0;
-        double temperature_water = -99999.0;
-        double relative_humidity = -99999.0;
+        double temperature = -99999.0;		// degrees Celsius
+        double temperature_mean = -99999.0;	// degrees Celsius
+        double temperature_water = -99999.0;	// degrees Celsius
+        double relative_humidity = -99999.0;	// percent
         double precipitation_annual = -99999.0;
         double precipitation = -99999.0;
         bool has_autumn = false;
 
-        double dewpoint = -99999.0;
+        double dewpoint = -99999.0;		// degrees Celsius
         double pressure = 0.0;
 
     } _ground_tile;
@@ -160,6 +160,7 @@ private:
 
     double _adj_latitude_deg = 0.0;	// viewer lat adjusted for sun lat
     double _adj_longitude_deg = 0.0;	// viewer lat adjusted for sun lon
+    double _elevation_m = 0.0;
 
     double _daytime = 0.0;
     double _day_noon = 1.0;
@@ -168,6 +169,9 @@ private:
     double _season_transistional = 0.0;
     double _seasons_year = 0.0;
     double _is_autumn = -99999.0;
+
+    const double _max_visibility_m = 35000.0;
+    double _visibility_m = _max_visibility_m;
 
     // Köppen-Geiger classicfications
     ClimateTile _tiles[3][3];
@@ -181,6 +185,11 @@ private:
     double _dust_cover = -99999.0;	// 0.0 = none, 1.0 = dusty
     double _wetness = -99999.0;		// 0.0 = dry, 1.0 = wet
     double _lichen_cover = -99999.0;	// 0.0 = none, 1.0 = mossy
+
+    // HDR
+    double _fog = 0.0;
+    double _mist = 0.0;
+    double _aerosol_density = 1.0e16;
 
     // weather
     int _code = 0;			// Köppen-Geiger classicfication
