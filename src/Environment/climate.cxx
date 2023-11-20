@@ -828,18 +828,8 @@ void FGClimate::set_environment()
     _mist = pow(4.17*std::max(0.01*humidity-0.76, 0.0), 0.03);
     _fog = exp(-1.842*diff_temp_dewpoint);
 
-    if (1 || !_weather_update)
-    {
-        _visibility_m = fgGetDouble("/environment/visibility-m", _max_visibility_m);
-        if (_visibility_m > _max_visibility_m) {
-            _visibility_m = _max_visibility_m;
-        }
-    }
-    else
-    {
-        double val = 0.01*_mist + 0.99*_fog;
-        _visibility_m = _max_visibility_m*(1.0 - val);
-    }
+    double val = 0.01*_mist + 0.99*_fog;
+    _visibility_m = _max_visibility_m*(1.0 - val);
 
     // snow chance based on latitude, mean temperature and monthly precipitation
     if (_gl.precipitation < 60.0) {
@@ -955,10 +945,6 @@ void FGClimate::set_environment()
         {
             fgSetDouble("/environment/season", 0.0);
         }
-
-        // HDR fog density
-        double fog = 3e7*pow(0.999, _visibility_m);
-        fgSetDouble("/sim/rendering/hdr/atmos/fog-density", fog);
     }
 
     // for material animation
