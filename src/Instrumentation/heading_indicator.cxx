@@ -56,6 +56,7 @@ HeadingIndicator::reinit ()
     _last_heading_deg = (_heading_in_node->getDoubleValue() +
                          _offset_node->getDoubleValue());
     _gyro.reinit();
+    m_precessionDueToTime = 0.0;
 }
 
 void
@@ -92,10 +93,10 @@ HeadingIndicator::update (double dt)
     _gyro.update(dt);
     double spin = _gyro.get_spin_norm();
 
-                                // Next, calculate time-based precession
-    double offset = _offset_node->getDoubleValue();
-    offset -= dt * (0.25 / 60.0); // 360deg/day
-    SG_NORMALIZE_RANGE(offset, -360.0, 360.0);
+    // Next, calculate time-based precession
+    if (spin > 0.2) {
+        m_precessionDueToTime += (dt * (0.25 / 60.0)); // 360 deg/day;
+    }
 
                                 // TODO: movement-induced error
 
@@ -115,7 +116,8 @@ HeadingIndicator::update (double dt)
     heading = fgGetLowPass(_last_heading_deg, heading, dt * factor);
     _last_heading_deg = heading;
 
-    heading += offset;
+    // apply offsets
+    heading += _offset_node->getDoubleValue() - m_precessionDueToTime;
     SG_NORMALIZE_RANGE(heading, 0.0, 360.0);
 
     _heading_out_node->setDoubleValue(heading);

@@ -58,6 +58,7 @@ private:
     std::string _name;
     int _num;
     std::string _suction;
+    double m_precessionDueToTime = 0.0;
 
     SGPropertyNode_ptr _offset_node;
     SGPropertyNode_ptr _heading_in_node;
