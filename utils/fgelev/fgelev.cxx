@@ -236,7 +236,6 @@ main(int argc, char** argv)
                       << "deg lat = " << lat << "deg" << std::endl;
 
         std::cout << id << ": ";
-        std::string solid = material && material->get_solid() ? "solid" : "-";
         if (!found) {
             std::cout << "-1000" << std::endl;
         } else {
