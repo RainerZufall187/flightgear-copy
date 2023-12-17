@@ -288,6 +288,12 @@ void fgOSOpenWindow(bool stencil)
     }
 }
 SGPropertyNode *simHost = 0, *simFrameCount, *simTotalHostTime, *simFrameResetCount, *frameWait;
+
+// Getter/Setter to work around lack of unsigned int properties.  Note that we have a minimum of 1 DB thread as otherwise
+// nothing will be loaded. We also force the number of HTTP threads to 0, as we don't use them.
+inline int getNumDatabaseThreads() { return DisplaySettings::instance()->getNumOfDatabaseThreadsHint(); }
+inline void setNumDatabaseThreads(int threads) {  DisplaySettings::instance()->setNumOfDatabaseThreadsHint(max(threads, 1)); DisplaySettings::instance()->setNumOfHttpDatabaseThreadsHint(0);  }
+
 void fgOSResetProperties()
 {
     SGPropertyNode* osgLevel = fgGetNode("/sim/rendering/osg-notify-level", true);
@@ -318,6 +324,7 @@ void fgOSResetProperties()
     fgTie("/sim/rendering/osg-displaysettings/double-buffer", displaySettings, &DisplaySettings::getDoubleBuffer, &DisplaySettings::setDoubleBuffer);
     fgTie("/sim/rendering/osg-displaysettings/depth-buffer", displaySettings, &DisplaySettings::getDepthBuffer, &DisplaySettings::setDepthBuffer);
     fgTie("/sim/rendering/osg-displaysettings/rgb", displaySettings, &DisplaySettings::getRGB, &DisplaySettings::setRGB);
+    fgTie("/sim/rendering/database-pager/threads", &getNumDatabaseThreads, &setNumDatabaseThreads);
 
 #ifdef ENABLE_OSGXR
     fgSetBool("/sim/vr/built", true);

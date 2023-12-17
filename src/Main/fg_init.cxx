@@ -1429,12 +1429,12 @@ void fgStartNewReset()
 
     sgUserDataInit( globals->get_props() );
 
-    unsigned int numDBPagerThreads = fgGetNode("/sim/rendering/database-pager/threads", true)->getIntValue(4);
+    unsigned int numDBPagerThreads = max(fgGetNode("/sim/rendering/database-pager/threads", true)->getIntValue(1), 1);
 
     if (composite_viewer) {
         composite_viewer_view->setDatabasePager(FGScenery::getPagerSingleton());
         composite_viewer_view->getDatabasePager()->setUnrefImageDataAfterApplyPolicy(true, false);
-        composite_viewer_view->getDatabasePager()->setUpThreads(numDBPagerThreads, 1);
+        composite_viewer_view->getDatabasePager()->setUpThreads(numDBPagerThreads, 0);
         composite_viewer_view->getDatabasePager()->setAcceptNewDatabaseRequests(true);
         flightgear::CameraGroup::buildDefaultGroup(composite_viewer_view);
         composite_viewer_view->setFrameStamp(composite_viewer->getFrameStamp());
