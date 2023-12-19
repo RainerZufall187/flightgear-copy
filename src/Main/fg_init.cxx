@@ -1429,12 +1429,21 @@ void fgStartNewReset()
 
     sgUserDataInit( globals->get_props() );
 
-    unsigned int numDBPagerThreads = fgGetNode("/sim/rendering/database-pager/threads", true)->getIntValue(4);
+    // For the moment we fix the number of database threads as 1. Once
+    // we are confident that mltiple database threads is working, we will
+    // replace the environmental variable check with the below line.
+    // unsigned int numDBPagerThreads = max(fgGetNode("/sim/rendering/database-pager/threads", true)->getIntValue(1), 1);
+
+    unsigned int numDBPagerThreads = 1;
+    if (std::getenv("FG_OVERRIDE_PAGER_THREADS")) {
+        numDBPagerThreads = stoi(std::getenv("FG_OVERRIDE_PAGER_THREADS"));
+        SG_LOG(SG_ALL, SG_ALERT, "Over-riding number of database threads to " << numDBPagerThreads << ".  Expect turbulence and possible crashes if using more than one thread.");
+    }
 
     if (composite_viewer) {
         composite_viewer_view->setDatabasePager(FGScenery::getPagerSingleton());
         composite_viewer_view->getDatabasePager()->setUnrefImageDataAfterApplyPolicy(true, false);
-        composite_viewer_view->getDatabasePager()->setUpThreads(numDBPagerThreads, 1);
+        composite_viewer_view->getDatabasePager()->setUpThreads(numDBPagerThreads, 0);
         composite_viewer_view->getDatabasePager()->setAcceptNewDatabaseRequests(true);
         flightgear::CameraGroup::buildDefaultGroup(composite_viewer_view);
         composite_viewer_view->setFrameStamp(composite_viewer->getFrameStamp());
