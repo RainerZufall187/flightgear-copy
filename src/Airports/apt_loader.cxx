@@ -327,7 +327,6 @@ const FGAirport* APTLoader::loadAirport(const SGPath& aptDatFile, const std::str
             string cleanedLine = cleanLine(linesIt->str);
             oss << aptDat << ":" << linesIt->number << ": unknown row code " << rowCode;
             SG_LOG(SG_GENERAL, SG_ALERT, oss.str() << " (" << cleanedLine << ")");
-            throw sg_format_exception(oss.str(), cleanedLine);
         }
     } // of loop over the second and subsequent apt.dat lines for the airport
 
