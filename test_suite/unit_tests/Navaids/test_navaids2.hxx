@@ -32,6 +32,8 @@ class NavaidsTests : public CppUnit::TestFixture
     // Set up the test suite.
     CPPUNIT_TEST_SUITE(NavaidsTests);
     CPPUNIT_TEST(testBasic);
+    CPPUNIT_TEST(testCustomWaypoint);
+    CPPUNIT_TEST(testTemporaryWaypoint);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -43,6 +45,8 @@ public:
 
     // The tests.
     void testBasic();
+    void testCustomWaypoint();
+    void testTemporaryWaypoint();
 };
 
 #endif  // _FG_NAVAIDS_UNIT_TESTS_HXX

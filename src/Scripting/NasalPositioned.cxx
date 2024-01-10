@@ -72,6 +72,9 @@ static naGhostType FixGhostType = { positionedGhostDestroy, "fix", fixGhostGetMe
 static const char* commGhostGetMember(naContext c, void* g, naRef field, naRef* out);
 static naGhostType CommGhostType = {positionedGhostDestroy, "comm", commGhostGetMember, nullptr};
 
+static const char* poiGhostGetMember(naContext c, void* g, naRef field, naRef* out);
+static naGhostType POIGhostType = {positionedGhostDestroy, "poi", poiGhostGetMember, nullptr};
+
 static void hashset(naContext c, naRef hash, const char* key, naRef val)
 {
   naRef s = naNewString(c);
@@ -92,7 +95,8 @@ FGPositioned* positionedGhost(naRef r)
         (naGhost_type(r) == &NavaidGhostType) ||
         (naGhost_type(r) == &RunwayGhostType) ||
         (naGhost_type(r) == &FixGhostType) ||
-        (naGhost_type(r) == &CommGhostType)) {
+        (naGhost_type(r) == &FixGhostType) ||
+        (naGhost_type(r) == &POIGhostType)) {
         return (FGPositioned*) naGhost_ptr(r);
     }
 
@@ -134,12 +138,22 @@ static FGFix* fixGhost(naRef r)
   return 0;
 }
 
+#if 0
 static flightgear::CommStation* commGhost(naRef r)
 {
   if (naGhost_type(r) == &CommGhostType)
     return (flightgear::CommStation*)naGhost_ptr(r);
   return nullptr;
 }
+#endif
+
+static POI* poiGhost(naRef r)
+{
+    if (naGhost_type(r) == &POIGhostType)
+        return (POI*)naGhost_ptr(r);
+    return nullptr;
+}
+
 
 static void positionedGhostDestroy(void* g)
 {
@@ -151,6 +165,7 @@ static void positionedGhostDestroy(void* g)
 
 static naRef airportPrototype;
 static naRef geoCoordClass;
+static naRef waypointPrototype;
 
 naRef ghostForAirport(naContext c, const FGAirport* apt)
 {
@@ -222,6 +237,16 @@ naRef ghostForComm(naContext c, const flightgear::CommStation* comm)
   return naNewGhost2(c, &CommGhostType, (void*)comm);
 }
 
+naRef ghostForPOI(naContext c, const POI* r)
+{
+    if (!r) {
+        return naNil();
+    }
+
+    FGPositioned::get(r); // take a ref
+    return naNewGhost2(c, &POIGhostType, (void*)r);
+}
+
 naRef ghostForPositioned(naContext c, FGPositionedRef pos)
 {
     if (!pos) {
@@ -250,6 +275,14 @@ naRef ghostForPositioned(naContext c, FGPositionedRef pos)
     case FGPositioned::FREQ_UNICOM:
     case FGPositioned::FREQ_ENROUTE:
         return ghostForComm(c, fgpositioned_cast<flightgear::CommStation>(pos));
+
+    case FGPositioned::WAYPOINT:
+    case FGPositioned::CITY:
+    case FGPositioned::COUNTRY:
+    case FGPositioned::TOWN:
+    case FGPositioned::VISUAL_REPORTING_POINT:
+    case FGPositioned::VILLAGE:
+        return ghostForPOI(c, fgpositioned_cast<POI>(pos));
 
     default:
         SG_LOG(SG_NASAL, SG_DEV_ALERT, "Type lacks Nasal ghost mapping:" << pos->typeString());
@@ -409,6 +442,8 @@ static const char* fixGhostGetMember(naContext c, void* g, naRef field, naRef* o
     // for homogenity with other values returned by navinfo()
   else if (!strcmp(fieldName, "type")) *out = stringToNasal(c, "fix");
   else if (!strcmp(fieldName, "name")) *out = stringToNasal(c, fix->ident());
+  else if (!strcmp(fieldName, "guid"))
+      *out = naNum(fix->guid());
   else {
     return 0;
   }
@@ -433,11 +468,40 @@ static const char* commGhostGetMember(naContext c, void* g, naRef field, naRef* 
     *out = stringToNasal(c, comm->name());
   else if (!strcmp(fieldName, "frequency")) {
     *out = naNum(comm->freqMHz());
+  } else if (!strcmp(fieldName, "guid")) {
+      *out = naNum(comm->guid());
   } else {
-    return 0;
+      return 0;
   }
 
   return "";
+}
+
+static const char* poiGhostGetMember(naContext c, void* g, naRef field, naRef* out)
+{
+    const char* fieldName = naStr_data(field);
+    POI* wpt = (POI*)g;
+
+    if (!strcmp(fieldName, "parents")) {
+      *out = naNewVector(c);
+      naVec_append(*out, waypointPrototype);
+    } else if (!strcmp(fieldName, "id"))
+        *out = stringToNasal(c, wpt->ident());
+    else if (!strcmp(fieldName, "lat"))
+        *out = naNum(wpt->latitude());
+    else if (!strcmp(fieldName, "lon"))
+        *out = naNum(wpt->longitude());
+    else if (!strcmp(fieldName, "type"))
+        *out = stringToNasal(c, wpt->nameForType(wpt->type()));
+    else if (!strcmp(fieldName, "name"))
+        *out = stringToNasal(c, wpt->name());
+    else if (!strcmp(fieldName, "guid"))
+        *out = naNum(wpt->guid());
+    else {
+        return 0;
+    }
+
+    return "";
 }
 
 
@@ -538,6 +602,11 @@ int geodFromArgs(naRef* args, int offset, int argc, SGGeod& result)
     if (gt == &FixGhostType) {
       result = fixGhost(args[offset])->geod();
       return 1;
+    }
+
+    if (gt == &POIGhostType) {
+        result = poiGhost(args[offset])->geod();
+        return 1;
     }
 
     auto wp = wayptGhost(args[offset]);
@@ -1648,6 +1717,79 @@ static naRef f_tileIndex(naContext c, naRef me, int argc, naRef* args)
   return naNum(b.gen_index());
 }
 
+static naRef f_createWaypoint(naContext c, naRef me, int argc, naRef* args)
+{
+    if ((argc < 3) || !naIsString(args[0]) || !naIsString(args[1])) {
+        naRuntimeError(c, "createWaypoint: expects type and ident as first two args");
+    }
+
+    std::string typeSpec(naStr_data(args[0]));
+    std::string ident(naStr_data(args[1]));
+    std::string name;
+
+    FGPositioned::Type wptType = FGPositioned::typeFromName(typeSpec);
+
+    SGGeod pos;
+    int argOffset = geodFromArgs(args, 2, argc, pos) + 2;
+    if ((argc > argOffset) && naIsString(args[argOffset])) {
+        name = naStr_data(args[argOffset]);
+        ++argOffset;
+    }
+
+    bool isTemporary = false;
+    if ((argc > argOffset) && naIsNum(args[argOffset])) {
+        isTemporary = (args[argOffset].num > 0);
+    }
+
+    try {
+        auto wpt = FGPositioned::createWaypoint(wptType, ident, pos, isTemporary, name);
+        if (wptType == FGPositioned::FIX) {
+            return ghostForFix(c, fgpositioned_cast<FGFix>(wpt));
+        }
+
+        auto poi = fgpositioned_cast<POI>(wpt);
+        return ghostForPOI(c, poi);
+    } catch (std::exception& e) {
+        naRuntimeError(c, "Failed to create waypoint: %s", e.what());
+    }
+
+    return naNil();
+}
+
+
+static naRef f_deleteWaypoint(naContext c, naRef me, int argc, naRef* args)
+{
+    if (argc < 1) {
+        naRuntimeError(c, "deleteWaypoint: missing argument");
+    }
+
+    FGPositioned* wpt = poiGhost(args[0]);
+    if (!wpt && naIsNum(args[0])) {
+        PositionedID guid = static_cast<PositionedID>(args[0].num);
+        wpt = NavDataCache::instance()->loadById(guid);
+        if (!POI::isType(wpt->type())) {
+          naRuntimeError(c, "deleteWaypoint: only waypoints can be deleted for now");
+        }
+    }
+
+    FGPositioned::deleteWaypoint(wpt);
+    // note wpt is dead here, don't access
+    return naNil();
+}
+
+static naRef f_waypoint_move(naContext c, naRef me, int argc, naRef* args)
+{
+  POI* wpt = poiGhost(me);
+  if (!wpt) {
+    naRuntimeError(c, "waypoint.move called on non-POI object");
+  }
+
+  SGGeod pos;
+  geodFromArgs(args, 0, argc, pos);
+
+  NavDataCache::instance()->updatePosition(wpt->guid(), pos);
+  return naNil();
+}
 
 void shutdownNasalPositioned()
 {
@@ -1711,6 +1853,8 @@ static struct {
     {"greatCircleMove", f_greatCircleMove},
     {"tileIndex", f_tileIndex},
     {"tilePath", f_tilePath},
+    {"createWaypoint", f_createWaypoint},
+    {"deleteWaypoint", f_deleteWaypoint},
     {0, 0}};
 
 
@@ -1739,6 +1883,10 @@ naRef initNasalPositioned(naRef globals, naContext c)
 
     hashset(c, airportPrototype, "findBestRunwayForPos", naNewFunc(c, naNewCCode(c, f_airport_findBestRunway)));
     hashset(c, airportPrototype, "tostring", naNewFunc(c, naNewCCode(c, f_airport_toString)));
+
+    waypointPrototype = naNewHash(c);
+    naSave(c, waypointPrototype);
+    hashset(c, waypointPrototype, "move", naNewFunc(c, naNewCCode(c, f_waypoint_move)));  
 
     for(int i=0; funcs[i].name; i++) {
       hashset(c, globals, funcs[i].name,

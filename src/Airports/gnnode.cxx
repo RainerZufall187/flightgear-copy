@@ -16,7 +16,7 @@ using namespace flightgear;
 
 FGTaxiNode::FGTaxiNode(FGPositioned::Type ty, int index, const SGGeod& pos,
                        bool aOnRunway, int aHoldType,
-                       const std::string& ident) : FGPositioned(TRANSIENT_ID, ty, ident, pos),
+                       const std::string& ident) : FGPositioned(NavDataCache::instance()->createTransientID(), ty, ident, pos),
                                                    m_index(index),
                                                    isOnRunway(aOnRunway),
                                                    holdType(aHoldType),

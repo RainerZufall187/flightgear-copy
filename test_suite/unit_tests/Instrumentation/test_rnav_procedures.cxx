@@ -501,6 +501,8 @@ void RNAVProcedureTests::testEGPH_TLA6C()
 
     CPPUNIT_ASSERT_EQUAL(std::string{"TLA"}, fp->legAtIndex(5)->waypoint()->ident());
     CPPUNIT_ASSERT_EQUAL(std::string{"TLA"}, std::string{m_gpsNode->getStringValue("wp/wp[1]/ID")});
+
+    SG_UNUSED(elapsed);
 }
 
 void RNAVProcedureTests::testLFKC_AJO1R()

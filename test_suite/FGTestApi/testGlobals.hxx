@@ -70,7 +70,9 @@ void writeGeodsToKML(const std::string &label, const flightgear::SGGeodVec& geod
 void writePointToKML(const std::string& ident, const SGGeod& pos);
 
 bool executeNasal(const std::string& code);
-    
+
+bool geodsApproximatelyEqual(const SGGeod& a, const SGGeod& b);
+
 namespace tearDown {
 
 void shutdownTestGlobals();

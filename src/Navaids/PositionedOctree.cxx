@@ -1,25 +1,8 @@
-/**
- * PositionedOctree - define a spatial octree containing Positioned items
- * arranged by their global cartesian position.
+/*
+ * SPDX-FileCopyrightText: (C) 2012 James Turner <james@flightgear.org>
+ * SPDX_FileComment: define a spatial octree containing Positioned items
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
-
-// Written by James Turner, started 2012.
-//
-// Copyright (C) 2012 James Turner
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "config.h"
 
@@ -150,6 +133,20 @@ void Leaf::insertChild(FGPositioned::Type ty, PositionedID id)
 {
   assert(_childrenLoaded);
   children.insert(children.end(), TypedPositioned(ty, id));
+}
+
+void Leaf::removeChild(PositionedID id)
+{
+    // only for use with transient items, i.e negative IDs
+    assert(id < 0);
+
+    auto it = std::find_if(children.begin(), children.end(), [id](const TypedPositioned& p) {
+        return p.second == id;
+    });
+
+    if (it != children.end()) {
+        children.erase(it);
+    }
 }
 
 void Leaf::loadChildren()
@@ -337,6 +334,7 @@ bool findNearestN(const SGVec3d& aPos, unsigned int aN, double aCutoffM, FGPosit
   FindNearestPQueue pq;
   FindNearestResults results;
   pq.push(Ordered<Node*>(globalPersistentOctree(), 0));
+  pq.push(Ordered<Node*>(globalTransientOctree(), 0));
   double cut = aCutoffM;
 
   SGTimeStamp tm;
@@ -378,6 +376,7 @@ bool findAllWithinRange(const SGVec3d& aPos, double aRangeM, FGPositioned::Filte
   FindNearestPQueue pq;
   FindNearestResults results;
   pq.push(Ordered<Node*>(globalPersistentOctree(), 0));
+  pq.push(Ordered<Node*>(globalTransientOctree(), 0));
   double rng = aRangeM;
 
   SGTimeStamp tm;

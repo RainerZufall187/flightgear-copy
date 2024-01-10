@@ -422,12 +422,12 @@ void Airway::Network::addEdge(int aWay, const SGGeod& aStartPos,
     
   if (!start) {
     SG_LOG(SG_NAVAID, SG_DEBUG, "unknown airways start pt: '" << aStartIdent << "'");
-    start = FGPositioned::createUserWaypoint(aStartIdent, aStartPos);
+    start = FGPositioned::createWaypoint(FGPositioned::WAYPOINT, aStartIdent, aStartPos);
   }
   
   if (!end) {
     SG_LOG(SG_NAVAID, SG_DEBUG, "unknown airways end pt: '" << aEndIdent << "'");
-    end = FGPositioned::createUserWaypoint(aEndIdent, aEndPos);
+    end = FGPositioned::createWaypoint(FGPositioned::WAYPOINT, aEndIdent, aEndPos);
   }
   
   NavDataCache::instance()->insertEdge(_networkID, aWay, start->guid(), end->guid());

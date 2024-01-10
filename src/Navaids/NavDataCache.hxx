@@ -182,11 +182,10 @@ public:
     PositionedID insertCommStation(FGPositioned::Type ty,
                                    const std::string& name, const SGGeod& pos, int freq, int range,
                                    PositionedID apt);
-    PositionedID insertFix(const std::string& ident, const SGGeod& aPos);
 
-    PositionedID createPOI(FGPositioned::Type ty, const std::string& ident, const SGGeod& aPos);
+    PositionedID createPOI(FGPositioned::Type ty, const std::string& ident, const SGGeod& aPos, const std::string& aName, bool transient);
 
-    bool removePOI(FGPositioned::Type ty, const std::string& aIdent);
+    bool removePOI(FGPositionedRef wpt);
 
     /// update the metar flag associated with an airport
     void setAirportMetar(const std::string& icao, bool hasMetar);
@@ -335,6 +334,8 @@ public:
     };
 
     void clearDynamicPositioneds();
+
+    PositionedID createTransientID();
 
 private:
     NavDataCache();

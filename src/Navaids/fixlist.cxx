@@ -145,8 +145,8 @@ void FixesLoader::loadFixes(const NavDataCache::SceneryLocation& sceneryLocation
     }
 
     if (!duplicate) {
-      _cache->insertFix(ident, pos);
-      _loadedFixes.insert({ident, pos});
+        _cache->createPOI(FGPositioned::FIX, ident, pos, {}, false);
+        _loadedFixes.insert({ident, pos});
     }
 
     if ((lineNumber % 100) == 0) {

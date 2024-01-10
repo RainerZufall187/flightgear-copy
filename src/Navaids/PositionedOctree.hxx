@@ -1,28 +1,10 @@
-/**
- * PositionedOctree - define a spatial octree containing Positioned items
- * arranged by their global cartesian position.
+/*
+ * SPDX-FileCopyrightText: (C) 2012 James Turner <james@flightgear.org>
+ * SPDX_FileComment: define a spatial octree containing Positioned items
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-// Written by James Turner, started 2012.
-//
-// Copyright (C) 2012 James Turner
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
-#ifndef FG_POSITIONED_OCTREE_HXX
-#define FG_POSITIONED_OCTREE_HXX
+#pragma once
 
 // std
 #include <array>
@@ -193,14 +175,15 @@ namespace Octree
     }
 
     void insertChild(FGPositioned::Type ty, PositionedID id);
+    void removeChild(PositionedID id);
 
-  private:
-      bool _childrenLoaded = false;
+private:
+    bool _childrenLoaded = false;
 
-      typedef std::multimap<FGPositioned::Type, PositionedID> ChildMap;
-      ChildMap children;
+    typedef std::multimap<FGPositioned::Type, PositionedID> ChildMap;
+    ChildMap children;
 
-      void loadChildren();
+    void loadChildren();
   };
 
   class Branch : public Node
@@ -253,4 +236,3 @@ namespace Octree
 
 } // of namespace flightgear
 
-#endif // of FG_POSITIONED_OCTREE_HXX

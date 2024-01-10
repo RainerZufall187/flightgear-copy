@@ -1519,7 +1519,7 @@ void GPS::defineWaypoint()
     }
     
     SG_LOG(SG_INSTR, SG_INFO, "GPS:defineWaypoint: creating waypoint:" << ident);
-    FGPositionedRef wpt = FGPositioned::createUserWaypoint(ident, _scratchPos);
+    FGPositionedRef wpt = FGPositioned::createWaypoint(FGPositioned::WAYPOINT, ident, _scratchPos, false);
     _searchResults.clear();
     _searchResults.push_back(wpt);
     setScratchFromPositioned(wpt.get(), -1);

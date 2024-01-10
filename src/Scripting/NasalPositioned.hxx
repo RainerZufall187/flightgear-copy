@@ -18,8 +18,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#ifndef SCRIPTING_NASAL_POSITIONED_HXX
-#define SCRIPTING_NASAL_POSITIONED_HXX
+#pragma once
 
 #include <simgear/nasal/nasal.h>
 
@@ -48,5 +47,3 @@ naRef initNasalPositioned(naRef globals, naContext c);
 naRef initNasalPositioned_cppbind(naRef globals, naContext c);
 void postinitNasalPositioned(naRef globals, naContext c);
 void shutdownNasalPositioned();
-
-#endif // of SCRIPTING_NASAL_POSITIONED_HXX

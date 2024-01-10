@@ -1,22 +1,8 @@
-// positioned.cxx - base class for objects which are positioned 
-//
-// Copyright (C) 2008 James Turner
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
+/*
+ * SPDX-FileCopyrightText: (C) 2008 James Turner <james@flightgear.org>
+ * SPDX_FileComment: base class for objects which are spatially located in the simulated world
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include "config.h"
 
@@ -59,8 +45,6 @@ static bool validateFilter(FGPositioned::Filter* filter)
     
     return true;
 }
-
-const PositionedID FGPositioned::TRANSIENT_ID = -2;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -118,25 +102,55 @@ bool FGPositioned::isNavaidType(FGPositioned* pos)
   }
 }
 
+static bool isValidCustomWaypointType(FGPositioned::Type ty)
+{
+    switch (ty) {
+    case FGPositioned::WAYPOINT:
+    case FGPositioned::FIX:
+    case FGPositioned::VISUAL_REPORTING_POINT:
+    case FGPositioned::OBSTACLE:
+        return true;
+    default:
+        return false;
+    }
+}
+
 FGPositionedRef
-FGPositioned::createUserWaypoint(const std::string& aIdent, const SGGeod& aPos)
+FGPositioned::createWaypoint(FGPositioned::Type aType, const std::string& aIdent, const SGGeod& aPos,
+                             bool isTemporary,
+                             const std::string& aName)
 {
   NavDataCache* cache = NavDataCache::instance();
-  TypeFilter filter(WAYPOINT);
-  FGPositionedList existing = cache->findAllWithIdent(aIdent, &filter, true);
-  if (!existing.empty()) {
-    SG_LOG(SG_NAVAID, SG_WARN, "attempt to insert duplicate WAYPOINT:" << aIdent);
-    return existing.front();
+
+  if (!isValidCustomWaypointType(aType)) {
+      throw std::logic_error(std::string{"Create waypoint: not allowed for type:"} + nameForType(aType));
   }
-  
-  PositionedID id = cache->createPOI(WAYPOINT, aIdent, aPos);
+
+  TypeFilter filter(aType);
+
+  FGPositionedRef existing = cache->findClosestWithIdent(aIdent, aPos, &filter);
+  if (existing) {
+      auto distanceNm = SGGeodesy::distanceNm(existing->geod(), aPos);
+      if (distanceNm < 100) {
+          SG_LOG(SG_NAVAID, SG_WARN, "attempt to insert duplicate waypoint:" << aIdent << " within 100nm of existing waypoint with same ident");
+          return existing;
+      }
+  }
+
+  const PositionedID id = cache->createPOI(aType, aIdent, aPos, aName, isTemporary);
   return cache->loadById(id);
 }
 
-bool FGPositioned::deleteUserWaypoint(const std::string& aIdent)
+bool FGPositioned::deleteWaypoint(FGPositionedRef ref)
 {
   NavDataCache* cache = NavDataCache::instance();
-  return cache->removePOI(WAYPOINT, aIdent);
+  const auto ty = ref->type();
+  if (!POI::isType(ty) && (ty != FGPositioned::FIX)) {
+      SG_LOG(SG_NAVAID, SG_DEV_WARN, "attempt to remove non-POI waypoint:" << ref->ident());
+      return false;
+  }
+
+  return cache->removePOI(ref);
 }
 
 
@@ -156,62 +170,63 @@ FGPositioned::Type FGPositioned::typeFromName(const std::string& aName)
     const char* _name;
     Type _ty;
   } NameTypeEntry;
-  
+
   const NameTypeEntry names[] = {
-    {"airport", AIRPORT},
-    {"heliport", HELIPORT},
-    {"seaport", SEAPORT},
-    {"vor", VOR},
-    {"loc", LOC},
-    {"ils", ILS},
-    {"gs", GS},
-    {"ndb", NDB},
-    {"wpt", WAYPOINT},
-    {"fix", FIX},
-    {"tacan", TACAN},
-    {"dme", DME},
-    {"atis", FREQ_ATIS},
-    {"awos", FREQ_AWOS},
-    {"tower", FREQ_TOWER},
-    {"ground", FREQ_GROUND},
-    {"approach", FREQ_APP_DEP},
-    {"departure", FREQ_APP_DEP},
-    {"clearance", FREQ_CLEARANCE},
-    {"unicom", FREQ_UNICOM},
-    {"runway", RUNWAY},
-    {"helipad", HELIPAD},
-    {"country", COUNTRY},
-    {"city", CITY},
-    {"town", TOWN},
-    {"village", VILLAGE},
-    {"taxiway", TAXIWAY},
-    {"pavement", PAVEMENT},
-    {"om", OM},
-    {"mm", MM},
-    {"im", IM},
-    {"mobile-tacan", MOBILE_TACAN},
-    {"obstacle", OBSTACLE},
-    {"parking", PARKING},
-    {"taxi-node",TAXI_NODE},
+      {"airport", AIRPORT},
+      {"heliport", HELIPORT},
+      {"seaport", SEAPORT},
+      {"vor", VOR},
+      {"loc", LOC},
+      {"ils", ILS},
+      {"gs", GS},
+      {"ndb", NDB},
+      {"wpt", WAYPOINT},
+      {"fix", FIX},
+      {"tacan", TACAN},
+      {"dme", DME},
+      {"atis", FREQ_ATIS},
+      {"awos", FREQ_AWOS},
+      {"tower", FREQ_TOWER},
+      {"ground", FREQ_GROUND},
+      {"approach", FREQ_APP_DEP},
+      {"departure", FREQ_APP_DEP},
+      {"clearance", FREQ_CLEARANCE},
+      {"unicom", FREQ_UNICOM},
+      {"runway", RUNWAY},
+      {"helipad", HELIPAD},
+      {"country", COUNTRY},
+      {"city", CITY},
+      {"town", TOWN},
+      {"village", VILLAGE},
+      {"taxiway", TAXIWAY},
+      {"pavement", PAVEMENT},
+      {"om", OM},
+      {"mm", MM},
+      {"im", IM},
+      {"mobile-tacan", MOBILE_TACAN},
+      {"obstacle", OBSTACLE},
+      {"parking", PARKING},
+      {"taxi-node", TAXI_NODE},
+      {"visual-reporting-point", VISUAL_REPORTING_POINT},
 
-  // aliases
-    {"localizer", LOC},
-    {"gnd", FREQ_GROUND},
-    {"twr", FREQ_TOWER},
-    {"waypoint", WAYPOINT},
-    {"apt", AIRPORT},
-    {"arpt", AIRPORT},
-    {"rwy", RUNWAY},
-    {"any", INVALID},
-    {"all", INVALID},
-    {"outer-marker", OM},
-    {"middle-marker", MM},
-    {"inner-marker", IM},
-    {"parking-stand", PARKING},
+      // aliases
+      {"localizer", LOC},
+      {"gnd", FREQ_GROUND},
+      {"twr", FREQ_TOWER},
+      {"waypoint", WAYPOINT},
+      {"apt", AIRPORT},
+      {"arpt", AIRPORT},
+      {"rwy", RUNWAY},
+      {"any", INVALID},
+      {"all", INVALID},
+      {"outer-marker", OM},
+      {"middle-marker", MM},
+      {"inner-marker", IM},
+      {"parking-stand", PARKING},
+      {"vrp", VISUAL_REPORTING_POINT},
 
-    {NULL, INVALID}
-  };
-  
+      {NULL, INVALID}};
+
   std::string lowerName = simgear::strutils::lowercase(aName);
   
   for (const NameTypeEntry* n = names; (n->_name != NULL); ++n) {
@@ -259,6 +274,9 @@ const char* FGPositioned::nameForType(Type aTy)
  case CITY: return "city";
  case TOWN: return "town";
  case VILLAGE: return "village";
+ case VISUAL_REPORTING_POINT: return "visual-reporting-point";
+ case MOBILE_TACAN: return "mobile-tacan";
+ case OBSTACLE: return "obstacle";
  default:
   return "unknown";
  }
@@ -493,3 +511,13 @@ FGPositioned::TypeFilter::pass(FGPositioned* aPos) const
     return false;
 }
 
+POI::POI(PositionedID aGuid, Type ty, const std::string& aIdent, const SGGeod& aPos, const std::string& aName) : FGPositioned(aGuid, ty, aIdent, aPos),
+                                                                                                                 mName(aName)
+{
+}
+
+bool POI::isType(FGPositioned::Type ty)
+{
+    return (ty == FGPositioned::WAYPOINT) || (ty == FGPositioned::OBSTACLE) ||
+           ((ty >= FGPositioned::COUNTRY) && (ty < FGPositioned::LAST_POI_TYPE));
+}

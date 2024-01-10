@@ -459,6 +459,12 @@ SGPropertyNode_ptr propsFromString(const std::string& s)
     return m;
 }
 
+bool geodsApproximatelyEqual(const SGGeod& a, const SGGeod& b)
+{
+    return SGGeodesy::distanceM(a, b) < 50.0;
+}
+
+
 namespace tearDown {
 
 void shutdownTestGlobals()

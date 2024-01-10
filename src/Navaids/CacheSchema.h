@@ -1,6 +1,6 @@
 #pragma once
 
-const int SCHEMA_VERSION = 22;
+const int SCHEMA_VERSION = 25;
 
 #define SCHEMA_SQL                                                                              \
     "CREATE TABLE properties (key VARCHAR, value VARCHAR);"                                     \
@@ -15,7 +15,7 @@ const int SCHEMA_VERSION = 22;
     "CREATE INDEX pos_name ON positioned(name collate nocase);"                                 \
     "CREATE INDEX pos_apt_type ON positioned(airport, type);"                                   \
                                                                                                 \
-    "CREATE TABLE airport (scenery_path VARCHAR, has_metar BOOL);"                                                    \
+    "CREATE TABLE airport (scenery_path VARCHAR, has_metar BOOL);"                              \
     "CREATE TABLE comm (freq_khz INT,range_nm INT);"                                            \
     "CREATE INDEX comm_freq ON comm(freq_khz);"                                                 \
                                                                                                 \
@@ -32,3 +32,18 @@ const int SCHEMA_VERSION = 22;
     "CREATE TABLE airway_edge (network INT,airway INT64,a INT64,b INT64);"                      \
     "CREATE INDEX airway_edge_from ON airway_edge(a);"                                          \
     "CREATE INDEX airway_edge_to ON airway_edge(b);"
+
+// this part is run for every new connection, including read-only connections
+
+#define TEMPORARY_SCHEMA_SQL                                                          \
+    "CREATE TEMPORARY TABLE temp_positioned (type INT, ident VARCHAR collate nocase," \
+    "name VARCHAR collate nocase, airport INT64, lon FLOAT, lat FLOAT,"               \
+    "elev_m FLOAT, octree_node INT, cart_x FLOAT, cart_y FLOAT, cart_z FLOAT);"       \
+                                                                                      \
+                                                                                      \
+    "CREATE TEMPORARY VIEW all_positioned AS "                                        \
+    "SELECT rowid AS guid, type, ident, name, airport, lon, lat,"                     \
+    "elev_m, octree_node, cart_x, cart_y, cart_z FROM positioned "                    \
+    "UNION ALL "                                                                      \
+    "SELECT rowid AS guid, type, ident, name, airport, lon, lat,"                     \
+    "elev_m, octree_node, cart_x, cart_y, cart_z FROM temp_positioned;"

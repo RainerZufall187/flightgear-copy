@@ -1,26 +1,10 @@
-// poidb.cxx -- points of interest management routines
-//
-// Written by Christian Schmitt, March 2013
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
+/*
+ * SPDX-FileCopyrightText: (C) Christian Schmitt, March 2013
+ * SPDX_FileComment: points of interest management routines
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "config.h"
 
 #include <istream>              // std::ws
 #include "poidb.hxx"
@@ -45,6 +29,10 @@ mapPOITypeToFGPType(int aTy)
   case 12: return FGPositioned::CITY;
   case 13: return FGPositioned::TOWN;
   case 14: return FGPositioned::VILLAGE;
+  
+  case 1000: return FGPositioned::VISUAL_REPORTING_POINT;
+  case 1001: return FGPositioned::WAYPOINT;
+
   default:
     throw sg_range_exception("Unknown POI type", "FGNavDataCache::readPOIFromStream");
   }
@@ -87,7 +75,7 @@ static PositionedID readPOIFromStream(std::istream& aStream, NavDataCache* cache
     return 0;
   }
 
-  return cache->createPOI(type, name, pos);
+  return cache->createPOI(type, name, pos, name, false);
 }
 
 // load and initialize the POI database

@@ -1,25 +1,10 @@
-// positioned.hxx - base class for objects which are positioned
-//
-// Copyright (C) 2008 James Turner
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
+/*
+ * SPDX-FileCopyrightText: (C) 2008 James Turner <james@flightgear.org>
+ * SPDX_FileComment: base class for objects which are spatially located in the simulated world
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
-#ifndef FG_POSITIONED_HXX
-#define FG_POSITIONED_HXX
+#pragma once
 
 #include <cassert>
 #include <string>
@@ -42,8 +27,6 @@ namespace flightgear { class NavDataCache; }
 class FGPositioned : public SGReferenced
 {
 public:
-    static const PositionedID TRANSIENT_ID;
-
     typedef enum {
         INVALID = 0,
         AIRPORT,
@@ -91,7 +74,8 @@ public:
         CITY,
         TOWN,
         VILLAGE,
-
+        VISUAL_REPORTING_POINT,
+        LAST_POI_TYPE,
         LAST_TYPE
     } Type;
 
@@ -295,13 +279,16 @@ public:
    */
   static const char* nameForType(Type aTy);
 
-  static FGPositionedRef createUserWaypoint(const std::string& aIdent, const SGGeod& aPos);
-  static bool deleteUserWaypoint(const std::string& aIdent);
+  static FGPositionedRef createWaypoint(FGPositioned::Type aType, const std::string& aIdent, const SGGeod& aPos,
+                                        bool isTemporary = false,
+                                        const std::string& aName = {});
+  static bool deleteWaypoint(FGPositionedRef aWpt);
 protected:
   friend class flightgear::NavDataCache;
 
   FGPositioned(PositionedID aGuid, Type ty, const std::string& aIdent, const SGGeod& aPos);
 
+  // called by NavDataCache::updatePosition
   void modifyPosition(const SGGeod& newPos);
   void invalidatePosition();
 
@@ -317,6 +304,8 @@ private:
   const SGGeod mPosition;
   const SGVec3d mCart;
 };
+
+
 
 template <class T>
 T* fgpositioned_cast(FGPositioned* p)
@@ -340,4 +329,18 @@ T* fgpositioned_cast(FGPositionedRef p)
     return nullptr;
 }
 
-#endif // of FG_POSITIONED_HXX
+class POI : public FGPositioned
+{
+public:
+  POI(PositionedID aGuid, Type ty, const std::string& aIdent, const SGGeod& aPos, const std::string& aName);
+
+  const std::string& name() const override
+  {
+      return mName;
+  }
+
+  static bool isType(FGPositioned::Type ty);
+
+  private:
+  std::string mName;
+};

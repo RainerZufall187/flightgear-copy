@@ -329,6 +329,8 @@ public:
 
     reset(checkTables);
 
+    initTemporaryTables();
+
     readPropertyQuery = prepare("SELECT value FROM properties WHERE key=?");
     writePropertyQuery = prepare("INSERT INTO properties (key, value) VALUES (?,?)");
     clearProperty = prepare("DELETE FROM properties WHERE key=?1");
@@ -549,6 +551,18 @@ public:
       } // of commands in scheme loop
   }
 
+  void initTemporaryTables()
+  {
+      const auto commands = simgear::strutils::split(TEMPORARY_SCHEMA_SQL, ";");
+      for (auto sql : commands) {
+          if (sql.empty()) {
+              continue;
+          }
+
+          runSQL(sql);
+      } // of commands in scheme loop
+  }
+
   void prepareQueries()
   {
     writePropertyMulti = prepare("INSERT INTO properties (key, value) VALUES(?1,?2)");
@@ -558,20 +572,20 @@ public:
     rollbackTransactionStmt = prepare("ROLLBACK");
 
 
-#define POSITIONED_COLS "rowid, type, ident, name, airport, lon, lat, elev_m, octree_node"
+#define POSITIONED_COLS "guid, type, ident, name, airport, lon, lat, elev_m, octree_node"
 #define AND_TYPED "AND type>=?2 AND type <=?3"
     statCacheCheck = prepare("SELECT stamp, sha FROM stat_cache WHERE path=?");
     stampFileCache = prepare("INSERT OR REPLACE INTO stat_cache "
                              "(path, stamp, sha) VALUES (?,?, ?)");
 
-    loadPositioned = prepare("SELECT " POSITIONED_COLS " FROM positioned WHERE rowid=?");
+    loadPositioned = prepare("SELECT " POSITIONED_COLS " FROM all_positioned WHERE guid=?");
     loadAirportStmt = prepare("SELECT scenery_path, has_metar FROM airport WHERE rowid=?");
     loadNavaid = prepare("SELECT range_nm, freq, multiuse, runway, colocated FROM navaid WHERE rowid=?");
     loadCommStation = prepare("SELECT freq_khz, range_nm FROM comm WHERE rowid=?");
     loadRunwayStmt = prepare("SELECT heading, length_ft, width_m, surface, displaced_threshold,"
                              "stopway, reciprocal, ils FROM runway WHERE rowid=?1");
 
-    getAirportItems = prepare("SELECT rowid FROM positioned WHERE airport=?1 " AND_TYPED);
+    getAirportItems = prepare("SELECT guid FROM all_positioned WHERE airport=?1 " AND_TYPED);
 
 
     setAirportMetar = prepare("UPDATE airport SET has_metar=?2 WHERE rowid="
@@ -588,8 +602,16 @@ public:
                                     "cart_x, cart_y, cart_z)"
                                     " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)");
 
-    setAirportPos = prepare("UPDATE positioned SET lon=?2, lat=?3, elev_m=?4, octree_node=?5, "
+    insertTempPosQuery = prepare("INSERT INTO temp_positioned "
+                                 "(rowid, type, ident, name, lon, lat, elev_m, "
+                                 "cart_x, cart_y, cart_z)"
+                                 " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)");
+
+    updatePosition = prepare("UPDATE positioned SET lon=?2, lat=?3, elev_m=?4, octree_node=?5, "
+                             "cart_x=?6, cart_y=?7, cart_z=?8 WHERE rowid=?1");
+    updateTempPos = prepare("UPDATE temp_positioned SET lon=?2, lat=?3, elev_m=?4, octree_node=?5, "
                             "cart_x=?6, cart_y=?7, cart_z=?8 WHERE rowid=?1");
+
     insertAirport = prepare("INSERT INTO airport (rowid, scenery_path, has_metar) VALUES (?, ?, ?)");
     insertNavaid = prepare("INSERT INTO navaid (rowid, freq, range_nm, multiuse, runway, colocated)"
                            " VALUES (?1, ?2, ?3, ?4, ?5, ?6)");
@@ -601,11 +623,11 @@ public:
                            " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)");
     runwayLengthFtQuery = prepare("SELECT length_ft FROM runway WHERE rowid=?1");
 
-    removePOIQuery = prepare("DELETE FROM positioned WHERE type=?1 AND ident=?2");
+    removePositionedQuery = prepare("DELETE FROM positioned WHERE rowid=?1");
+    removeTempPosQuery = prepare("DELETE FROM temp_positioned WHERE rowid=?1");
 
-  // query statement
-    findClosestWithIdent = prepare("SELECT rowid FROM positioned WHERE ident=?1 "
-                                   AND_TYPED " ORDER BY distanceCartSqr(cart_x, cart_y, cart_z, ?4, ?5, ?6)");
+    // query statement
+    findClosestWithIdent = prepare("SELECT guid FROM all_positioned WHERE ident=?1 " AND_TYPED " ORDER BY distanceCartSqr(cart_x, cart_y, cart_z, ?4, ?5, ?6)");
 
     findCommByFreq = prepare("SELECT positioned.rowid FROM positioned, comm WHERE "
                              "positioned.rowid=comm.rowid AND freq_khz=?1 "
@@ -649,7 +671,7 @@ public:
     sqlite3_bind_int(getAllAirports, 2, FGPositioned::SEAPORT);
 
 
-    getAirportItemByIdent = prepare("SELECT rowid FROM positioned WHERE airport=?1 AND ident=?2 AND type=?3");
+    getAirportItemByIdent = prepare("SELECT guid FROM all_positioned WHERE airport=?1 AND ident=?2 AND type=?3");
 
     findAirportRunway = prepare("SELECT airport, rowid FROM positioned WHERE ident=?2 AND type=?3 AND airport="
                                 "(SELECT rowid FROM positioned WHERE type=?4 AND ident=?1)");
@@ -839,6 +861,36 @@ public:
     return r;
   }
 
+
+  PositionedID insertTemporaryPositioned(PositionedID guid, FGPositioned::Type ty, const string& ident,
+                                         const string& name, const SGGeod& pos,
+                                         bool spatialIndex)
+  {
+      if (abandonCache)
+          throw AbandonCacheException{};
+
+      SGVec3d cartPos(SGVec3d::fromGeod(pos));
+
+      sqlite3_bind_int64(insertTempPosQuery, 1, guid);
+      sqlite3_bind_int(insertTempPosQuery, 2, ty);
+      sqlite_bind_stdstring(insertTempPosQuery, 3, ident);
+      sqlite_bind_stdstring(insertTempPosQuery, 4, name);
+      sqlite3_bind_double(insertTempPosQuery, 5, pos.getLongitudeDeg());
+      sqlite3_bind_double(insertTempPosQuery, 6, pos.getLatitudeDeg());
+      sqlite3_bind_double(insertTempPosQuery, 7, pos.getElevationM());
+      sqlite3_bind_double(insertTempPosQuery, 8, cartPos.x());
+      sqlite3_bind_double(insertTempPosQuery, 9, cartPos.y());
+      sqlite3_bind_double(insertTempPosQuery, 10, cartPos.z());
+
+      execInsert(insertTempPosQuery);
+
+      // insert into the transient octree
+      Octree::Leaf* octreeLeaf = Octree::globalTransientOctree()->findLeafForPos(cartPos);
+      octreeLeaf->insertChild(ty, guid);
+
+      return guid;
+  }
+
   FGPositionedList findAllByString(const string& s, const string& column,
                                      FGPositioned::Filter* filter, bool exact)
   {
@@ -847,7 +899,7 @@ public:
 
   // build up SQL query text
     string matchTerm = exact ? "=?1" : " LIKE ?1";
-    string sql = "SELECT rowid FROM positioned WHERE " + column + matchTerm;
+    string sql = "SELECT guid FROM all_positioned WHERE " + column + matchTerm;
     if (filter) {
       sql += " " AND_TYPED;
     }
@@ -916,12 +968,12 @@ public:
     deferredOctreeUpdates.clear();
   }
 
-  void removePositionedWithIdent(FGPositioned::Type ty, const std::string& aIdent)
+  void removePositioned(PositionedID rowid)
   {
-    sqlite3_bind_int(removePOIQuery, 1, ty);
-    sqlite_bind_stdstring(removePOIQuery, 2, aIdent);
-    execUpdate(removePOIQuery);
-    reset(removePOIQuery);
+      auto stmt = rowid < 0 ? removeTempPosQuery : removePositionedQuery;
+      sqlite3_bind_int64(stmt, 1, rowid);
+      execUpdate(stmt);
+      reset(stmt);
   }
 
   NavDataCache* outer;
@@ -959,9 +1011,10 @@ public:
 
     sqlite3_stmt_ptr insertPositionedQuery, insertAirport, insertTower, insertRunway,
         insertCommStation, insertNavaid;
+    sqlite3_stmt_ptr insertTempPosQuery;
     sqlite3_stmt_ptr setAirportMetar, setRunwayReciprocal, setRunwayILS, setNavaidColocated,
-        setAirportPos;
-    sqlite3_stmt_ptr removePOIQuery;
+        updatePosition, updateTempPos;
+    sqlite3_stmt_ptr removePositionedQuery, removeTempPosQuery;
 
     sqlite3_stmt_ptr findClosestWithIdent;
     // octree (spatial index) related queries
@@ -996,6 +1049,10 @@ public:
     // if we're performing a rebuild, the thread that is doing the work.
     // otherwise, NULL
     std::unique_ptr<RebuildThread> rebuilder;
+
+    // transient rowIDs (not actually present in the on-disk DB, only in our
+    // in-memory cache / temporary table) start at this value and count down
+    PositionedID nextTransientId = -1000;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -1058,9 +1115,9 @@ FGPositioned* NavDataCache::NavDataCachePrivate::loadById(sqlite3_int64 rowid,
     case FGPositioned::CITY:
     case FGPositioned::TOWN:
     case FGPositioned::VILLAGE:
-    {
-        FGPositioned* wpt = new FGPositioned(rowid, ty, ident, pos);
-      return wpt;
+    case FGPositioned::VISUAL_REPORTING_POINT: {
+        FGPositioned* wpt = new POI(rowid, ty, ident, pos, name);
+        return wpt;
     }
 
     case FGPositioned::FREQ_GROUND:
@@ -2009,14 +2066,14 @@ void NavDataCache::clearDynamicPositioneds()
 
 FGPositionedRef NavDataCache::loadById(PositionedID rowid)
 {
-  if (rowid < 1) {
-    return NULL;
-  }
-  if (!d) return NULL;
+    if (!d || (rowid == 0)) {
+        return {};
+    };
+
   PositionedCache::iterator it = d->cache.find(rowid);
   if (it != d->cache.end()) {
     d->cacheHits++;
-    return it->second; // cache it
+    return it->second; // cache hit
   }
 
   sqlite3_int64 aptId;
@@ -2060,35 +2117,62 @@ PositionedID NavDataCache::insertAirport(FGPositioned::Type ty, const string& id
 
 void NavDataCache::updatePosition(PositionedID item, const SGGeod &pos)
 {
-  if (d->cache.find(item) != d->cache.end()) {
-    SG_LOG(SG_NAVCACHE, SG_DEBUG, "updating position of an item in the cache");
-    d->cache[item]->modifyPosition(pos);
-  }
+    const bool isTemporary = (item < 0);
+    SGVec3d cartPos(SGVec3d::fromGeod(pos));
+    auto it = d->cache.find(item);
 
-  SGVec3d cartPos(SGVec3d::fromGeod(pos));
+    // transient item, update the transient octree : this is much easier than the
+    // persistent octree case (see logic below) becuase we know the tree is fully
+    // loaded, and there's no DB table to keep in sync; we just update the in-memory
+    // leaves once we found them.
+    if (isTemporary) {
+        assert(it != d->cache.end()); // transient item must existing in the in-memory cache
 
-  sqlite3_bind_int(d->setAirportPos, 1, item);
-  sqlite3_bind_double(d->setAirportPos, 2, pos.getLongitudeDeg());
-  sqlite3_bind_double(d->setAirportPos, 3, pos.getLatitudeDeg());
-  sqlite3_bind_double(d->setAirportPos, 4, pos.getElevationM());
+        SGVec3d oldCartPos(SGVec3d::fromGeod(it->second->geod()));
+        const auto ty = it->second->type();
 
-// bug 905; the octree leaf may change here, but the leaf may already be
-// loaded, and caching its children. (Either the old or new leaf!). Worse,
-// we may be called here as a result of loading one of those leaf's children.
-// instead of dealing with all those possibilites, such as modifying
-// the in-memory leaf's STL child container, we simply leave the runtime
-// structures alone. This is fine providing items do no move very far, since
-// all the spatial searches ultimately use the items' real cartesian position,
-// which was updated above.
-  Octree::Leaf* octreeLeaf = Octree::globalPersistentOctree()->findLeafForPos(cartPos);
-  sqlite3_bind_int64(d->setAirportPos, 5, octreeLeaf->guid());
+        Octree::Leaf* oldOctreeLeaf = Octree::globalTransientOctree()->findLeafForPos(oldCartPos);
+        Octree::Leaf* newOctreeLeaf = Octree::globalTransientOctree()->findLeafForPos(cartPos);
 
-  sqlite3_bind_double(d->setAirportPos, 6, cartPos.x());
-  sqlite3_bind_double(d->setAirportPos, 7, cartPos.y());
-  sqlite3_bind_double(d->setAirportPos, 8, cartPos.z());
+        // commonly the octree leaf won't change, so check for that
+        if (oldOctreeLeaf != newOctreeLeaf) {
+            oldOctreeLeaf->removeChild(item);
+            newOctreeLeaf->insertChild(ty, item);
+        }
+
+        it->second->modifyPosition(pos);
+    }
 
 
-  d->execUpdate(d->setAirportPos);
+    if (it != d->cache.end()) {
+        d->cache[item]->modifyPosition(pos);
+    }
+
+    auto stmt = isTemporary ? d->updateTempPos : d->updatePosition;
+    sqlite3_bind_int(stmt, 1, item);
+    sqlite3_bind_double(stmt, 2, pos.getLongitudeDeg());
+    sqlite3_bind_double(stmt, 3, pos.getLatitudeDeg());
+    sqlite3_bind_double(stmt, 4, pos.getElevationM());
+
+    if (!isTemporary) {
+        // bug 905; the octree leaf may change here, but the leaf may already be
+        // loaded, and caching its children. (Either the old or new leaf!). Worse,
+        // we may be called here as a result of loading one of those leaf's children.
+        // instead of dealing with all those possibilites, such as modifying
+        // the in-memory leaf's STL child container, we simply leave the runtime
+        // structures alone. This is fine providing items do no move very far, since
+        // all the spatial searches ultimately use the items' real cartesian position,
+        // which was updated above.
+        Octree::Leaf* octreeLeaf = Octree::globalPersistentOctree()->findLeafForPos(cartPos);
+        sqlite3_bind_int64(stmt, 5, octreeLeaf->guid());
+    }
+
+    sqlite3_bind_double(stmt, 6, cartPos.x());
+    sqlite3_bind_double(stmt, 7, cartPos.y());
+    sqlite3_bind_double(stmt, 8, cartPos.z());
+
+
+    d->execUpdate(stmt);
 }
 
 void NavDataCache::insertTower(PositionedID airportId, const SGGeod& pos)
@@ -2215,21 +2299,32 @@ PositionedID NavDataCache::insertCommStation(FGPositioned::Type ty,
   return d->execInsert(d->insertCommStation);
 }
 
-PositionedID NavDataCache::insertFix(const std::string& ident, const SGGeod& aPos)
+PositionedID NavDataCache::createPOI(FGPositioned::Type ty, const std::string& ident, const SGGeod& aPos,
+  const std::string& name, bool isTransient)
 {
-  return d->insertPositioned(FGPositioned::FIX, ident, string(), aPos, 0, true);
+  if (isTransient) {
+      return d->insertTemporaryPositioned(createTransientID(), ty, ident, name, aPos,
+                                          true /* spatial index */);
+  } else {
+      return d->insertPositioned(ty, ident, name, aPos, 0,
+                                 true /* spatial index */);
+  }
+
 }
 
-PositionedID NavDataCache::createPOI(FGPositioned::Type ty, const std::string& ident, const SGGeod& aPos)
+bool NavDataCache::removePOI(FGPositionedRef ref)
 {
-  return d->insertPositioned(ty, ident, string(), aPos, 0,
-                             true /* spatial index */);
-}
+    const bool isTemporary = ref->guid() < 0;
+    // remove from the octree if temporary.
+    if (isTemporary) {
+        auto octreeLeaf = Octree::globalTransientOctree()->findLeafForPos(ref->cart());
+        octreeLeaf->removeChild(ref->guid());
+    }
 
-bool NavDataCache::removePOI(FGPositioned::Type ty, const std::string& aIdent)
-{
-  d->removePositionedWithIdent(ty, aIdent);
-  // should remove from the live cache too?
+    d->removePositioned(ref->guid());
+
+    auto it = d->cache.find(ref->guid());
+    d->cache.erase(it);
 
     return true;
 }
@@ -2809,6 +2904,11 @@ bool NavDataCache::isReadOnly() const
 SGPath NavDataCache::path() const
 {
     return d->path;
+}
+
+PositionedID NavDataCache::createTransientID()
+{
+    return d->nextTransientId--;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

@@ -1333,9 +1333,12 @@ bool FGRouteMgr::commandDefineUserWaypoint(const SGPropertyNode * arg, SGPropert
         return false;
     }
 
+    const bool temporary = arg->getBoolValue("temporary");
     SGGeod pos(SGGeod::fromDeg(arg->getDoubleValue("longitude-deg"),
                                arg->getDoubleValue("latitude-deg")));
-    FGPositioned::createUserWaypoint(ident, pos);
+    const auto name = arg->getStringValue("name");
+    FGPositioned::createWaypoint(FGPositioned::WAYPOINT, ident, pos,
+                                 temporary, name);
     return true;
 }
 
@@ -1346,8 +1349,15 @@ bool FGRouteMgr::commandDeleteUserWaypoint(const SGPropertyNode * arg, SGPropert
         SG_LOG(SG_AUTOPILOT, SG_WARN, "missing ident deleting user waypoint");
         return false;
     }
-    
-    return FGPositioned::deleteUserWaypoint(ident);
+
+    FGPositioned::TypeFilter f(FGPositioned::WAYPOINT);
+    auto existing = FGPositioned::findFirstWithIdent(ident, &f);
+    if (!existing) {
+      SG_LOG(SG_AUTOPILOT, SG_WARN, "no user waypoint with ident:" << ident);
+      return false;
+    }
+
+    return FGPositioned::deleteWaypoint(existing);
 }
 
 
