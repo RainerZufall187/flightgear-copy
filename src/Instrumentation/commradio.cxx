@@ -1,27 +1,10 @@
-// commradio.cxx -- class to manage a nav radio instance
-//
-// Written by Torsten Dreyer, February 2014
-//
-// Copyright (C) 2000 - 2011  Curtis L. Olson - http://www.flightgear.org/~curt
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+/*
+ * SPDX-FileComment: class to manage a comm radio instance
+ * SPDX-FileCopyrightText: Copyright (C) 2014 Torsten Dreyer
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
+#include <config.h>
 
 #include "commradio.hxx"
 
@@ -734,7 +717,13 @@ void CommRadioImpl::updateAudio()
   const bool doSquelch = (_signalQuality_norm < _cutoffSignalQuality);
   double atisVolume = doSquelch ? 0.0 : _volume_norm;
   if (_addNoise) {
-    const double noiseVol = (1.0 - _signalQuality_norm) * _volume_norm;
+    double noiseVol = (1.0 - _signalQuality_norm) * _volume_norm;
+    if (_cutoffSignalQuality < 0.01) {
+      // ensure noise is still heard disabling squelch
+      // see https://sourceforge.net/p/flightgear/codetickets/2846/
+      noiseVol = _volume_norm;
+    }
+
     atisVolume = _signalQuality_norm * _volume_norm;
     noiseSample->set_volume(doSquelch ? 0.0: noiseVol);
   }
