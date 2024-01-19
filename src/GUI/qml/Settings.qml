@@ -532,7 +532,9 @@ Item {
                         advanced: true
 
                         label: qsTr("Scenery version")
-                        description: qsTr("scenery-version-description-text")
+                        description: qsTr("Scenery version 2.0 is available for the whole world and works well for " +
+                            "lower powered systems. Scenery version 3.0 is currently under development, but is only " +
+                            "available for limited areas. It is more detailed and performs better on high powered systems.")
                         keywords: ["scenery", "ws2.0", "ws20", "ws3.0", "ws30"]
                         choices: ["V2.0", "V3.0"]
                         property var data: [0, 1];
