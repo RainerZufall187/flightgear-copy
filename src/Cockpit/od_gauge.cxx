@@ -140,10 +140,9 @@ class ReplaceStaticTextureVisitor:
       simgear::Effect* eff = effectGeode->getEffect();
       if (!eff)
           return;
-      osg::StateSet* ss = eff->getDefaultStateSet();
-      if( !ss )
-        return;
 
+      // Assume that the parent node to the EffectGeode contains the object
+      // name. This is true for AC3D and glTF models.
       osg::Group *parent = node.getParent(0);
       if( !_node_name.empty() && getNodeName(*parent) != _node_name )
         return;
@@ -175,28 +174,36 @@ class ReplaceStaticTextureVisitor:
           return;
       }
 
-      for( unsigned int unit = 0; unit < ss->getNumTextureAttributeLists(); ++unit )
-      {
-        osg::Texture2D* tex = dynamic_cast<osg::Texture2D*>
-        (
-          ss->getTextureAttribute(unit, osg::StateAttribute::TEXTURE)
-        );
+      if (_tex_name.empty()) {
+        // No texture name was provided, so replace texture unit 0 by default
+        groups_to_modify.push_back({parent, &node, 0});
+      } else {
+        // A texture name was provided, so attempt to find the corresponding
+        // texture unit.
+        // XXX: This only works for AC3D models and Effects with a
+        // fixed-function pipeline technique.
+        osg::StateSet* ss = eff->getDefaultStateSet();
+        if (!ss) {
+          return;
+        }
 
-        if( !tex || !tex->getImage() || tex == _new_texture )
-          continue;
+        for (unsigned int unit = 0; unit < ss->getNumTextureAttributeLists(); ++unit) {
+          osg::Texture2D* tex = dynamic_cast<osg::Texture2D*>(
+            ss->getTextureAttribute(unit, osg::StateAttribute::TEXTURE));
 
-        if( !_tex_name.empty() )
-        {
+          if (!tex || !tex->getImage() || tex == _new_texture) {
+            continue;
+          }
+
           std::string tex_name = tex->getImage()->getFileName();
           std::string tex_name_simple = osgDB::getSimpleFileName(tex_name);
-          if( !osgDB::equalCaseInsensitive(_tex_name, tex_name_simple) )
+          if (!osgDB::equalCaseInsensitive(_tex_name, tex_name_simple)) {
             continue;
+          }
+
+          groups_to_modify.push_back({ parent, &node, unit });
+          return;
         }
-        /*
-         * remember this group for modification once the scenegraph has been traversed
-         */
-        groups_to_modify.push_back({ parent, &node, unit });
-        return;
       }
     }
     /*
@@ -206,41 +213,40 @@ class ReplaceStaticTextureVisitor:
      * should be called immediately after the visitor to ensure that the groups are still valid and that nothing else has modified these groups.
      */
     void modify_groups()
-	{
-        for (auto g : groups_to_modify) {
-            // insert a new group between the geode an it's parent which overrides
-			// the texture
-			GroupPtr group = new osg::Group;
-			group->setName("canvas texture group");
-			group->addChild(g.node);
-			g.parent->removeChild(g.node);
-			g.parent->addChild(group);
+    {
+      for (auto g : groups_to_modify) {
+        // insert a new group between the geode an it's parent which overrides
+        // the texture
+        GroupPtr group = new osg::Group;
+        group->setName("canvas texture group");
+        group->addChild(g.node);
+        g.parent->removeChild(g.node);
+        g.parent->addChild(group);
 
-			if (_cull_callback)
-				group->setCullCallback(_cull_callback);
+        if (_cull_callback)
+          group->setCullCallback(_cull_callback);
 
-			osg::StateSet* stateSet = group->getOrCreateStateSet();
-			stateSet->setTextureAttribute(g.unit, _new_texture,
-				osg::StateAttribute::OVERRIDE);
-			stateSet->setTextureMode(g.unit, GL_TEXTURE_2D,
-				osg::StateAttribute::ON);
+        group->getOrCreateStateSet()->setTextureAttributeAndModes(
+          g.unit,
+          _new_texture,
+          osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
-			_placements.push_back(simgear::canvas::PlacementPtr(
-				new simgear::canvas::ObjectPlacement(_node, group, _canvas)
-			));
+        _placements.push_back(simgear::canvas::PlacementPtr(
+                                new simgear::canvas::ObjectPlacement(_node, group, _canvas)
+                                ));
 
-			SG_LOG
-			(
-				SG_GL,
-				SG_INFO,
-				"Replaced texture '" << _tex_name << "'"
-				<< " for object '" << g.parent->getName() << "'"
-				<< (!_parent_name.empty() ? " with parent '" + _parent_name + "'"
-					: "")
-			);
-		}
-		groups_to_modify.clear();
-	}
+        SG_LOG
+          (
+            SG_GL,
+            SG_INFO,
+            "Replaced texture '" << _tex_name << "'"
+            << " for object '" << g.parent->getName() << "'"
+            << (!_parent_name.empty() ? " with parent '" + _parent_name + "'"
+                : "")
+            );
+      }
+      groups_to_modify.clear();
+    }
 
   protected:
 
