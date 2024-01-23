@@ -217,7 +217,8 @@ Finds compression of gear needed to make outside of tyre rest on ground.
     o_compression_norm
         Out-param compression as a fraction of maximum compression.
 
-If on ground, sets out params and returns true. Otherwise returns false.
+If on ground, sets out-params for ground contact and returns true. Otherwise
+sets out-params for maximum extension of the gear and returns false.
 */
 bool gearCompression(
         const float (&ground)[4],

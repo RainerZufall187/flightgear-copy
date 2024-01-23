@@ -300,10 +300,17 @@ bool gearCompression(
         bump_altitude = bump_fn();
         a -= bump_altitude;
     }
+
+    bool ret = true;
     
     if ( a < 0) {
-        /* S is above ground so we are not on ground. */
-        return false;
+        /* S is above ground so we are not on ground, so set ret=false.
+        
+        We force a=0 to pretend fully-extended gear is just on the ground, so
+        that o_contact will be set to the fully extended gear position. This
+        will be used by our caller to find /position/gear-agl-ft. */
+        ret = false;
+        a = 0;
     }
     
     /* Lowest part of wheel is below ground. */
@@ -336,10 +343,11 @@ bool gearCompression(
     Math::mul3( compression_distance, compression.unit, delta);
     Math::add3( S, delta, o_contact);
 
+    if (ret)
     {
-        /* Verify that <o_contact> is tyre_radius above ground; this can fail
-        e.g. when resetting so for now we just output a diagnostic rather than
-        assert fail. */
+        /* If we are on the ground, verify that <o_contact> is tyre_radius
+        above ground; this can fail e.g. when resetting so for now we just
+        output a diagnostic rather than assert fail. */
         //assert( fabs( Math::dot3( o_contact, ground) - (ground[3] - tyre_radius + bump_altitude)) < 0.001);
         double s = Math::dot3( o_contact, ground) - (ground[3] - tyre_radius + bump_altitude);
         if (fabs( s) > 0.001)
@@ -361,6 +369,7 @@ bool gearCompression(
         Math::add3( o_contact, delta, o_contact);
     }
     
+    if (ret)
     {
         /* Verify that <o_contact> is on ground; this can fail e.g. when resetting so for now we
         just output a diagnostic rather than assert fail. */
@@ -378,7 +387,7 @@ bool gearCompression(
         }
     }
     
-    return true;
+    return ret;
 }
 
 bool gearCompressionOld(
