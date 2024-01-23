@@ -382,7 +382,8 @@ void XRState::SceneViewAppView::addSlave(osg::Camera *slaveCamera)
     if (visMaskTransform.valid())
     {
         osg::View::Slave *slave = _osgView->findSlaveForCamera(slaveCamera);
-        slave->_updateSlaveCallback = new SceneViewUpdateSlaveCallback(_state, visMaskTransform.get());
+        if (slave)
+            slave->_updateSlaveCallback = new SceneViewUpdateSlaveCallback(_state, visMaskTransform.get());
     }
 }
 
@@ -611,8 +612,6 @@ bool XRState::checkAndResetStateChanged()
 
 void XRState::update()
 {
-    assert(_manager.valid());
-
     typedef UpResult (XRState::*UpHandler)();
     static UpHandler upStateHandlers[VRSTATE_MAX - 1] = {
         &XRState::upInstance,
@@ -1189,6 +1188,7 @@ XRState::DownResult XRState::downSession()
     }
 
     // no frames should be in progress
+    assert(!_frames.countFrames());
 
     // Stop threading to prevent the GL context being bound in another thread
     // during certain OpenXR calls (session & swapchain destruction).
@@ -1767,6 +1767,7 @@ void XRState::endFrame(osg::FrameStamp *stamp)
     if (!frame->hasBegun())
     {
         OSG_WARN << "OpenXR frame not begun" << std::endl;
+        _frames.killFrame(stamp);
         return;
     }
     for (auto &view: _xrViews)
