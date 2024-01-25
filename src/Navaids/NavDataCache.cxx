@@ -18,6 +18,7 @@
 #include <sstream>  // for std::ostringstream
 #include <mutex>
 #include <utility>
+#include <vector>
 
 #ifdef SYSTEM_SQLITE
 // the standard sqlite3.h doesn't give a way to set SQLITE_UINT64_TYPE,
@@ -864,19 +865,24 @@ public:
       sqlite3_bind_int(stmt, 3, filter->maxType());
     }
 
-    FGPositionedList result;
-  // run the prepared SQL
-    while (stepSelect(stmt))
-    {
-      FGPositioned* pos = outer->loadById(sqlite3_column_int64(stmt, 0));
-      if (filter && !filter->pass(pos)) {
-        continue;
-      }
-
-      result.push_back(pos);
+    std::vector<PositionedID> guids;
+    // Run the prepared SQL statement
+    while (stepSelect(stmt)) {
+        guids.push_back(sqlite3_column_int64(stmt, 0));
     }
 
+    // This must be done *before* outer->loadById(), otherwise the same
+    // prepared SQL statement could be executed reentrantly from there.
     reset(stmt);
+
+    FGPositionedList result;
+    for (const auto guid: guids) {
+        FGPositioned* pos = outer->loadById(guid);
+        if (!filter || filter->pass(pos)) {
+            result.push_back(pos);
+        }
+    }
+
     return result;
   }
 
