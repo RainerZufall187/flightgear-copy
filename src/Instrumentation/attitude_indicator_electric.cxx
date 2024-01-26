@@ -1,11 +1,10 @@
 // attitude_indicator_electric.hxx - an electrically-powered attitude indicator.
 // Written by David Megginson, started 2002.
 // Ported to Electric by Benedikt Wolf 2023
+// Enhanced by Benedikt Hallinger, 2023
 //
 // This file is in the Public Domain and comes with no warranty.
 
-// TODO:
-// - better spin-up
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
@@ -31,6 +30,10 @@ spin_thresh(0.8),
 max_roll_error(40.0),
 max_pitch_error(12.0)
 {
+    SGPropertyNode* gyro_cfg = node->getChild("gyro", 0, true);
+    _gyro_spin_up = gyro_cfg->getDoubleValue("spin-up-sec", 4.0);
+    _gyro_spin_down = gyro_cfg->getDoubleValue("spin-down-sec", 180.0);
+
     readConfig(node, "attitude-indicator-electric");
 }
 
@@ -65,7 +68,15 @@ AttitudeIndicatorElectric::init ()
 	_off_node         = node->getChild("off-flag", 0, true);
 	_spin_node = node->getChild("spin", 0, true);
 
-	initServicePowerProperties(node);
+    SGPropertyNode* gyro_node = node->getChild("gyro", 0, true);
+    _gyro_spin_up_node = gyro_node->getChild("spin-up-sec", 0, true);
+    _gyro_spin_down_node = gyro_node->getChild("spin-down-sec", 0, true);
+    if (!_gyro_spin_up_node->hasValue())
+        _gyro_spin_up_node->setDoubleValue(_gyro_spin_up);
+    if (!_gyro_spin_down_node->hasValue())
+        _gyro_spin_down_node->setDoubleValue(_gyro_spin_down);
+
+    initServicePowerProperties(node);
 
 	reinit();
 }
@@ -90,7 +101,10 @@ AttitudeIndicatorElectric::update (double dt)
 
 	// Get the spin from the gyro
 	_gyro.set_power_norm(isServiceableAndPowered());
-	_gyro.update(dt);
+    _gyro.set_spin_up(_gyro_spin_up_node->getDoubleValue());
+    _gyro.set_spin_down(_gyro_spin_down_node->getDoubleValue());
+    _gyro.set_spin_norm(_spin_node->getDoubleValue());
+    _gyro.update(dt);
 	double spin = _gyro.get_spin_norm();
 	_spin_node->setDoubleValue( spin );
 	

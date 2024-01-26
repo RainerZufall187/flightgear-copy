@@ -1,19 +1,12 @@
 /*
- * SPDX-License-Identifier: CC0-1.0
- * 
- * turn_indicator.hxx - an electric-powered turn indicator.
- * Written by David Megginson, started 2003.
- * 
- * This file is in the Public Domain and comes with no warranty.
- * 
-*/
+ * SPDX-FileName: turn_indicator.hxx
+ * SPDX-FileComment: an electric-powered turn indicator.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileContributor:  Written by David Megginson, started 2002.
+ */
 
 
 #pragma once
-
-#ifndef __cplusplus
-# error This library requires C++
-#endif
 
 #include <Instrumentation/AbstractInstrument.hxx>
 
@@ -21,7 +14,7 @@
 
 
 /**
- * Model an electric-powered turn indicator.
+ * Model 
  *
  * This class does not model the slip/skid ball; that is properly
  * a separate instrument.
@@ -47,6 +40,8 @@
  *                           supply path (not used when power-supply is set)
  *   power-supply
  *   minimum-supply-volts
+ *   gyro-spin-up-sec        If given, seconds to spin up until power-norm (from 0->100%)
+ *   gyro-spin-down-sec      If given, seconds the gyro will loose spin without power (from 100%->0)
  * 
  * Notes on the power supply path:
  *   
@@ -77,9 +72,10 @@ public:
 private:
     Gyro _gyro;
     double _last_rate;
+    double _gyro_spin_up, _gyro_spin_down;
 
     SGPropertyNode_ptr _roll_rate_node;
     SGPropertyNode_ptr _yaw_rate_node;
     SGPropertyNode_ptr _rate_out_node;
-    SGPropertyNode_ptr _spin_node;
+    SGPropertyNode_ptr _spin_node, _gyro_spin_up_node, _gyro_spin_down_node;
 };

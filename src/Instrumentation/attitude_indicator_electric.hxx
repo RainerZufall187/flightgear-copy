@@ -23,6 +23,10 @@
 /**
  * Model an electrically-powered attitude indicator.
  *
+ * Config:
+ *   gyro/spin-up-sec     If given, seconds to spin up until power-norm (from 0->100%)
+ *   gyro/spin-down-sec   If given, seconds the gyro will loose spin without power (from 100%->0)
+ * 
  * Input properties:
  *
  * /instrumentation/"name"/config/tumble-flag
@@ -56,6 +60,7 @@ public:
 
 private:
     Gyro _gyro;
+    double _gyro_spin_up, _gyro_spin_down;
 
     SGPropertyNode_ptr _tumble_flag_node;
     SGPropertyNode_ptr _caged_node;
@@ -67,8 +72,8 @@ private:
     SGPropertyNode_ptr _pitch_out_node;
     SGPropertyNode_ptr _roll_out_node;
     SGPropertyNode_ptr _off_node;
-    SGPropertyNode_ptr _spin_node;
-    
+    SGPropertyNode_ptr _spin_node, _gyro_spin_up_node, _gyro_spin_down_node;
+
     double spin_thresh;
     double max_roll_error;
     double max_pitch_error;

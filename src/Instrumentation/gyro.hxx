@@ -78,11 +78,25 @@ public:
      */
     virtual void set_serviceable (bool serviceable);
 
+    /**
+     * Set the gyro's spin up time in seconds (from 0 to full spin).
+     *
+     * @spin_up secs
+     */
+    virtual void set_spin_up(double spin_up);
+
+    /**
+     * Set the gyro's spin down time in seconds (from full spin to 0).
+     *
+     * @spin_down secs
+     */
+    virtual void set_spin_down(double spin_down);
 
 private:
 
     bool _serviceable;
     double _power_norm;
     double _spin_norm;
-
+    double _spin_down;
+    double _spin_up;
 };

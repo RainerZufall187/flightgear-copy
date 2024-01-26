@@ -1,11 +1,13 @@
-// heading_indicator.cxx - a vacuum-powered heading indicator.
-// Written by David Megginson, started 2002.
-//
-// This file is in the Public Domain and comes with no warranty.
+/*
+ * SPDX-FileName: heading_indicator.cxx
+ * SPDX-FileComment: a vacuum-powered heading indicator.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileContributor:  Written by David Megginson, started 2002.
+ */
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "config.h"
+
+#include "heading_indicator.hxx"
 
 #include <simgear/compiler.h>
 #include <simgear/sg_inlines.h>
@@ -14,7 +16,6 @@
 #include <string>
 #include <sstream>
 
-#include "heading_indicator.hxx"
 #include <Main/fg_props.hxx>
 #include <Main/util.hxx>
 

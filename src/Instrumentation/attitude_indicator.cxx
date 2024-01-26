@@ -1,14 +1,14 @@
-// attitude_indicator.cxx - a vacuum-powered attitude indicator.
-// Written by David Megginson, started 2002.
-//
-// This file is in the Public Domain and comes with no warranty.
+/*
+ * SPDX-FileName: attitude_indicator.cxx
+ * SPDX-FileComment: a vacuum-powered attitude indicator.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileContributor:  Written by David Megginson, started 2002.
+ * SPDX-FileContributor: Enhanced by Benedikt Hallinger, 2023
+ */
 
-// TODO:
-// - better spin-up
+#include "config.h"
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "attitude_indicator.hxx"
 
 #include <simgear/compiler.h>
 
@@ -18,7 +18,6 @@
 
 #include <cmath>    // fabs()
 
-#include "attitude_indicator.hxx"
 #include <Main/fg_props.hxx>
 #include <Main/util.hxx>
 
@@ -33,6 +32,16 @@ AttitudeIndicator::AttitudeIndicator ( SGPropertyNode *node )
     max_roll_error(40.0),
     max_pitch_error(12.0)
 {
+    _minVacuum = node->getDoubleValue("minimum-vacuum", 4.5);
+
+    SGPropertyNode* limits_cfg = node->getChild("limits", 0, true);
+    spin_thresh = limits_cfg->getDoubleValue("spin-thresh", 0.8);
+    max_roll_error = limits_cfg->getDoubleValue("max-roll-error-deg", 40.0);
+    max_pitch_error = limits_cfg->getDoubleValue("max-pitch-error-deg", 12.0);
+
+    SGPropertyNode* gyro_cfg = node->getChild("gyro", 0, true);
+    _gyro_spin_up = gyro_cfg->getDoubleValue("spin-up-sec", 4.0);
+    _gyro_spin_down = gyro_cfg->getDoubleValue("spin-down-sec", 180.0);
 }
 
 AttitudeIndicator::~AttitudeIndicator ()
@@ -66,6 +75,19 @@ AttitudeIndicator::init ()
     _pitch_out_node = node->getChild("indicated-pitch-deg", 0, true);
     _roll_out_node = node->getChild("indicated-roll-deg", 0, true);
 
+    _spin_node = node->getChild("spin", 0, true);
+
+    SGPropertyNode* gyro_node = node->getChild("gyro", 0, true);
+    _gyro_spin_up_node = gyro_node->getChild("spin-up-sec", 0, true);
+    _gyro_spin_down_node = gyro_node->getChild("spin-down-sec", 0, true);
+    if (!_gyro_spin_up_node->hasValue())
+        _gyro_spin_up_node->setDoubleValue(_gyro_spin_up);
+    if (!_gyro_spin_down_node->hasValue())
+        _gyro_spin_down_node->setDoubleValue(_gyro_spin_down);
+    _minVacuum_node = node->getChild("minimum-vacuum", 0, true);
+    if (!_minVacuum_node->hasValue())
+        _minVacuum_node->setDoubleValue(_minVacuum);
+
     reinit();
 }
 
@@ -87,8 +109,6 @@ AttitudeIndicator::bind ()
 
     fgTie((branch + "/serviceable").c_str(),
           &_gyro, &Gyro::is_serviceable, &Gyro::set_serviceable);
-    fgTie((branch + "/spin").c_str(),
-          &_gyro, &Gyro::get_spin_norm, &Gyro::set_spin_norm);
 }
 
 void
@@ -100,33 +120,31 @@ AttitudeIndicator::unbind ()
     branch = "/instrumentation/" + _name + "[" + temp.str() + "]";
 
     fgUntie((branch + "/serviceable").c_str());
-    fgUntie((branch + "/spin").c_str());
 }
 
 void
 AttitudeIndicator::update (double dt)
 {
-                                // If it's caged, it doesn't indicate
-    if (_caged_node->getBoolValue()) {
-        _roll_int_node->setDoubleValue(0.0);
-        _pitch_int_node->setDoubleValue(0.0);
-        return;
-    }
-
-                                // Get the spin from the gyro
-    _gyro.set_power_norm(_suction_node->getDoubleValue()/5.0);
+    // Get the spin from the gyro
+    _minVacuum = _minVacuum_node->getDoubleValue();
+    _gyro.set_power_norm(_suction_node->getDoubleValue() / _minVacuum);
+    _gyro.set_spin_up(_gyro_spin_up_node->getDoubleValue());
+    _gyro.set_spin_down(_gyro_spin_down_node->getDoubleValue());
+    _gyro.set_spin_norm(_spin_node->getDoubleValue());
     _gyro.update(dt);
     double spin = _gyro.get_spin_norm();
+    _spin_node->setDoubleValue(spin);
 
-                                // Calculate the responsiveness
+    // Calculate the responsiveness
     double responsiveness = spin * spin * spin * spin * spin * spin;
 
                                 // Get the indicated roll and pitch
     double roll = _roll_in_node->getDoubleValue();
     double pitch = _pitch_in_node->getDoubleValue();
+    bool isCaged = _caged_node->getBoolValue();
 
-                                // Calculate the tumble for the
-                                // next pass.
+    // Calculate the tumble for the
+    // next pass.
     if (_tumble_flag_node->getBoolValue()) {
         double tumble = _tumble_node->getDoubleValue();
         if (fabs(roll) > 45.0) {
@@ -144,7 +162,8 @@ AttitudeIndicator::update (double dt)
                 tumble = -1.0;
         }
                                     // Reerect in 5 minutes
-        double step = dt/300.0;
+        double t_reerect = isCaged ? 1.0 : 300.0;
+        double step = dt / t_reerect;
         if (tumble < -step)
             tumble += step;
         else if (tumble > step)
@@ -152,6 +171,13 @@ AttitudeIndicator::update (double dt)
 
         roll += tumble * 45;
         _tumble_node->setDoubleValue(tumble);
+    }
+
+    // If it's caged, it doesn't indicate
+    if (isCaged) {
+        _roll_int_node->setDoubleValue(0.0);
+        _pitch_int_node->setDoubleValue(0.0);
+        return;
     }
 
     roll = fgGetLowPass(_roll_int_node->getDoubleValue(), roll,

@@ -1,5 +1,8 @@
 // gyro.cxx - simple implementation of a spinning gyro model.
 
+// Todo: this should be really modelled physically correctly and initialize its own properties etc.
+//       this way, instruments using a gyro can just refer to it and read the data from the gyro.
+
 #include "gyro.hxx"
 
 Gyro::Gyro ()
@@ -17,19 +20,22 @@ void Gyro::reinit(void)
 {
     _power_norm = 0.0;
     _spin_norm = 0.0;
+    _spin_down = 180.0; // about 3 minutes from full spin
+    _spin_up = 4.0;     // up to power-norm; about 4 seconds to full spin
 }
 
 void
 Gyro::update (double delta_time_sec)
 {
                                 // spin decays 0.5% every second
-    _spin_norm -= 0.005 * delta_time_sec;
+                                double spin_decay = (1.0 / _spin_down) * delta_time_sec;
+                                _spin_norm -= spin_decay;
 
                                 // power can increase spin by 25%
                                 // every second, but only up to the
                                 // level of power available
     if (_serviceable) {
-        double step = 0.25 * _power_norm * delta_time_sec;
+        double step = spin_decay + (1.0 / _spin_up) * _power_norm * delta_time_sec;
         if ((_spin_norm + step) <= _power_norm)
             _spin_norm += step;
     } else {
@@ -72,6 +78,17 @@ Gyro::set_serviceable (bool serviceable)
 {
     _serviceable = serviceable;
 }
+
+void Gyro::set_spin_up(double spin_up)
+{
+    _spin_up = spin_up;
+}
+
+void Gyro::set_spin_down(double spin_down)
+{
+    _spin_down = spin_down;
+}
+
 
 // end of gyro.cxx
 

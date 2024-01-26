@@ -1,16 +1,11 @@
 /*
- * SPDX-License-Identifier: CC0-1.0
- * 
- * attitude_indicator.hxx - a vacuum-powered attitude indicator.
- * Written by David Megginson, started 2002.
- * 
- * This file is in the Public Domain and comes with no warranty.
-*/
-#pragma once
+ * SPDX-FileName: attitude_indicator.hxx
+ * SPDX-FileComment: a vacuum-powered attitude indicator.
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileContributor:  Written by David Megginson, started 2002.
+ */
 
-#ifndef __cplusplus
-# error This library requires C++
-#endif
+#pragma once
 
 #include <simgear/props/props.hxx>
 #include <simgear/structure/subsystem_mgr.hxx>
@@ -21,6 +16,14 @@
 /**
  * Model a vacuum-powered attitude indicator.
  *
+ * Config:
+ *   minimum-vacuum       Default 4.5 inHG
+ *   gyro/spin-up-sec     If given, seconds to spin up until power-norm (from 0->100%)
+ *   gyro/spin-down-sec   If given, seconds the gyro will loose spin without power (from 100%->0)
+ *   limits/spin-thresh
+ *   limits/max-roll-error-deg
+ *   limits/max-pitch-error-deg
+ * 
  * Input properties:
  *
  * /instrumentation/"name"/config/tumble-flag
@@ -59,6 +62,9 @@ private:
     std::string _suction;
 
     Gyro _gyro;
+    double _gyro_spin_up, _gyro_spin_down;
+    double _minVacuum;
+    SGPropertyNode_ptr _minVacuum_node;
 
     SGPropertyNode_ptr _tumble_flag_node;
     SGPropertyNode_ptr _caged_node;
@@ -70,7 +76,8 @@ private:
     SGPropertyNode_ptr _roll_int_node;
     SGPropertyNode_ptr _pitch_out_node;
     SGPropertyNode_ptr _roll_out_node;
-    
+    SGPropertyNode_ptr _spin_node, _gyro_spin_up_node, _gyro_spin_down_node;
+
     double spin_thresh;
     double max_roll_error;
     double max_pitch_error;

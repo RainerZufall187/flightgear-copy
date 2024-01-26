@@ -1,17 +1,11 @@
 /*
- * SPDX-License-Identifier: CC0-1.0
- * 
- * heading_indicator.hxx - a vacuum-powered heading indicator.
- * Written by David Megginson, started 2002.
- * 
- * This file is in the Public Domain and comes with no warranty.
-*/
+ * SPDX-FileName: heading_indicator.hxx
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileContributor:  Written by David Megginson, started 2002.
+ */
 
 #pragma once
 
-#ifndef __cplusplus
-# error This library requires C++
-#endif
 
 #include <simgear/props/props.hxx>
 #include <simgear/structure/subsystem_mgr.hxx>
