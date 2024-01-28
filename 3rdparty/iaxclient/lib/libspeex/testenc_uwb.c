@@ -125,11 +125,13 @@ int main(int argc, char **argv)
    fclose(fout);
 
    snr = 10 * log10( sigpow / errpow );
-   seg_snr /= snr_frames;
+   if (snr_frames > 0)
+      seg_snr /= snr_frames;
    fprintf(stderr,"SNR = %f\nsegmental SNR = %f\n",snr, seg_snr);
 
 #ifdef FIXED_DEBUG
-   printf ("Total: %f MIPS\n", (float)(1e-6*50*spx_mips/snr_frames));
+   if (snr_frames > 0)
+      printf ("Total: %f MIPS\n", (float)(1e-6*50*spx_mips/snr_frames));
 #endif
    
    return 1;
