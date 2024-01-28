@@ -199,7 +199,7 @@ void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
         _shortcut = n->getStringValue();
     }
 
-    auto bindingNodes = n->getChildren("binding");
+    auto bindingNodes = config->getChildren("binding");
     _bindings = readBindingList(bindingNodes, globals->get_props());
 
     n = config->getChild("menu");
