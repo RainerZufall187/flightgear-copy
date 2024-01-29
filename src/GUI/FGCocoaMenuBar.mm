@@ -27,22 +27,34 @@ typedef std::map<NSMenuItem*, SGBindingList> MenuItemBindings;
 
 namespace {
     
-    class CocoaEnabledListener : public SGPropertyChangeListener
+    class CocoaItemListener : public SGPropertyChangeListener
     {
     public:
-        CocoaEnabledListener(SGPropertyNode_ptr prop, NSMenuItem* i) :
-            property(prop->getNode("enabled")),
+        CocoaItemListener(SGPropertyNode_ptr prop, NSMenuItem* i) :
+            enableProp(prop->getNode("enabled")),
+            checkedProp(prop->getNode("checked")),
             item(i)
         {
-            if (property.get()) {
-                property->addChangeListener(this);
+            if (enableProp) {
+                enableProp->addChangeListener(this);
+                BOOL b = enableProp->getBoolValue();
+                [item setEnabled:b];
+            }
+
+            if (checkedProp) {
+                checkedProp->addChangeListener(this);
+                auto b = checkedProp->getBoolValue();
+                item.state = b ? NSControlStateValueOn : NSControlStateValueOff;
             }
         }
         
-        ~CocoaEnabledListener()
+        ~CocoaItemListener()
         {
-            if (property.get()) {
-                property->removeChangeListener(this);
+            if (enableProp) {
+                enableProp->removeChangeListener(this);
+            }
+            if (checkedProp) {
+                checkedProp->removeChangeListener(this);
             }
         }
         
@@ -50,12 +62,20 @@ namespace {
         virtual void valueChanged(SGPropertyNode *node)
         {
             CocoaAutoreleasePool pool;
-            BOOL b = node->getBoolValue();
-            [item setEnabled:b];
+            if (node == enableProp) {
+              BOOL b = node->getBoolValue();
+              [item setEnabled:b];
+            }
+
+            if (node == checkedProp) {
+              auto b = node->getBoolValue();
+              item.state = b ? NSControlStateValueOn : NSControlStateValueOff;
+            }
         }
         
     private:
-        SGPropertyNode_ptr property;
+        SGPropertyNode_ptr enableProp;
+        SGPropertyNode_ptr checkedProp;
         NSMenuItem* item;
     };
 } // of anonymous namespace
@@ -74,7 +94,7 @@ public:
   CocoaMenuDelegate* delegate;
   
   MenuItemBindings itemBindings;
-    std::vector<CocoaEnabledListener*> listeners;
+    std::vector<CocoaItemListener*> listeners;
 };
 
 @interface CocoaMenuDelegate : NSObject <NSMenuDelegate> {
@@ -196,20 +216,24 @@ void FGCocoaMenuBar::CocoaMenuBarPrivate::menuFromProps(NSMenu* menu, SGProperty
         if (!shortcut.empty()) {
           setItemShortcutFromString(item, shortcut);
         }
-        
-        CocoaEnabledListener* cl = new CocoaEnabledListener(n, item);
-        listeners.push_back(cl);
-          
+      
         [item setTarget:delegate];
         [item setAction:@selector(itemAction:)];
+
+        auto cl = new CocoaItemListener(n, item);
+        listeners.push_back(cl);
       }
     } else {
       item = [menu itemAtIndex:index];
       [item setTitle:label]; 
     }
-    
-    BOOL enabled = n->getBoolValue("enabled");
-    [item setEnabled:enabled];
+
+    auto subMenuNode = n->getChild("menu");
+    if (subMenuNode) {
+      NSMenu* subMenu = [[NSMenu alloc] init];
+      menuFromProps(subMenu, subMenuNode);
+      [item setSubmenu: subMenu];
+    }
     
     SGBindingList bl = readBindingList(n->getChildren("binding"), globals->get_props());
       
@@ -248,8 +272,7 @@ FGCocoaMenuBar::~FGCocoaMenuBar()
         [topLevelItem.submenu removeAllItems];
     }
     
-    std::vector<CocoaEnabledListener*>::iterator it;
-    for (it = p->listeners.begin(); it != p->listeners.end(); ++it) {
+    for (auto it = p->listeners.begin(); it != p->listeners.end(); ++it) {
         delete *it;
     }
     
@@ -273,6 +296,11 @@ void FGCocoaMenuBar::init()
   NSMenuItem* previousMenu = [mainBar itemAtIndex:0];
   if (![[previousMenu title] isEqualToString:@"FlightGear"]) {
     [previousMenu setTitle:@"FlightGear"];
+  }
+
+  // clear other menus in the menu-bar, eg from the launcher
+  while ([mainBar numberOfItems] > 1) {
+    [mainBar removeItemAtIndex:1];
   }
   
   for (auto n : props->getChildren("menu")) {
@@ -304,7 +332,7 @@ void FGCocoaMenuBar::init()
       n->setBoolValue("enabled", true);
     }
     
-    CocoaEnabledListener* l = new CocoaEnabledListener( n, item);
+    auto l = new CocoaItemListener( n, item);
     p->listeners.push_back(l);
   }
 }
