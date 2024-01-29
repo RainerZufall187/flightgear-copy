@@ -177,6 +177,21 @@ static void setItemShortcutFromString(NSMenuItem* item, const string& s)
   [item setKeyEquivalentModifierMask:modifiers];
 }
 
+static bool doesBindingShowDialog(const SGBindingList& bindings) 
+{
+  auto it = std::find_if(bindings.begin(), bindings.end(), [](SGAbstractBinding_ptr binding) 
+    {
+      auto nab = dynamic_cast<SGBinding*>(binding.get());
+      if (!nab) {
+        return false;
+      }
+
+      return nab->getCommandName() == "dialog-show";
+    });
+
+    return it != bindings.end();
+}
+
 FGCocoaMenuBar::CocoaMenuBarPrivate::CocoaMenuBarPrivate()
 {
   delegate = [[CocoaMenuDelegate alloc] init];
@@ -202,8 +217,15 @@ void FGCocoaMenuBar::CocoaMenuBarPrivate::menuFromProps(NSMenu* menu, SGProperty
       n->setBoolValue("enabled", true);
     }
     
-    string l = getLocalizedLabel(n);
-    NSString* label = stdStringToCocoa(strutils::simplify(l));
+    SGBindingList bl = readBindingList(n->getChildren("binding"), globals->get_props());
+    bool showsDialog = n->getBoolValue("shows-dialog") || doesBindingShowDialog(bl);
+
+    string l = strutils::simplify(getLocalizedLabel(n));
+    if (showsDialog && !strutils::ends_with(l, "...")) {
+      l += u8"…";
+    }
+
+    NSString* label = stdStringToCocoa(l);
     string shortcut = n->getStringValue("key");
     
     NSMenuItem* item;
@@ -235,7 +257,6 @@ void FGCocoaMenuBar::CocoaMenuBarPrivate::menuFromProps(NSMenu* menu, SGProperty
       [item setSubmenu: subMenu];
     }
     
-    SGBindingList bl = readBindingList(n->getChildren("binding"), globals->get_props());
       
     itemBindings[item] = bl;    
     ++index;
