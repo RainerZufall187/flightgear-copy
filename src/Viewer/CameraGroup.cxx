@@ -1116,7 +1116,11 @@ void warpGUIPointer(CameraGroup* cgroup, int x, int y)
 
 void reloadCompositors(CameraGroup *cgroup)
 {
-    cgroup->_viewer->getViewerBase()->stopThreading();
+    auto viewer_base = globals->get_renderer()->getViewerBase();
+    bool should_restart_threading = viewer_base->areThreadsRunning();
+    if (should_restart_threading) {
+        viewer_base->stopThreading();
+    }
 
     // Prevent the camera render orders increasing indefinitely with each reload
     Compositor::resetOrderOffset();
@@ -1157,7 +1161,9 @@ void reloadCompositors(CameraGroup *cgroup)
             info->reloadCompositorCallback->postReloadCompositor(cgroup, info);
     }
 
-    cgroup->_viewer->getViewerBase()->startThreading();
+    if (should_restart_threading) {
+        viewer_base->startThreading();
+    }
     fgSetBool("/sim/rendering/compositor-reload-required", false);
 }
 

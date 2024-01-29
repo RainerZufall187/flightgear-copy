@@ -1144,7 +1144,10 @@ FGRenderer::setEventHandler(FGEventHandler* eventHandler_)
 void
 FGRenderer::addCamera(osg::Camera* camera, bool useSceneData)
 {
-    getViewerBase()->stopThreading();
+    bool should_restart_threading = getViewerBase()->areThreadsRunning();
+    if (should_restart_threading) {
+        getViewerBase()->stopThreading();
+    }
     osg::Camera *guiCamera = getGUICamera(CameraGroup::getDefault());
     osg::GraphicsContext *gc = guiCamera->getGraphicsContext();
     camera->setGraphicsContext(gc);
@@ -1153,12 +1156,19 @@ FGRenderer::addCamera(osg::Camera* camera, bool useSceneData)
     } else {
         viewer->addSlave(camera, false);
     }
-    getViewerBase()->startThreading();
+    simgear::installEffectCullVisitor(camera);
+    if (should_restart_threading) {
+        getViewerBase()->startThreading();
+    }
 }
 
 void
 FGRenderer::removeCamera(osg::Camera* camera)
 {
+    bool should_restart_threading = getViewerBase()->areThreadsRunning();
+    if (should_restart_threading) {
+        getViewerBase()->stopThreading();
+    }
     getViewerBase()->stopThreading();
     if (composite_viewer) {
         unsigned int index = composite_viewer->getView(0)
@@ -1168,7 +1178,9 @@ FGRenderer::removeCamera(osg::Camera* camera)
         unsigned int index = viewer->findSlaveIndexForCamera(camera);
         viewer->removeSlave(index);
     }
-    getViewerBase()->startThreading();
+    if (should_restart_threading) {
+        getViewerBase()->startThreading();
+    }
 }
 
 void
