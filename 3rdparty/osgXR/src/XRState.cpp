@@ -5,6 +5,7 @@
 #include "XRStateCallbacks.h"
 #include "ActionSet.h"
 #include "CompositionLayer.h"
+#include "DebugCallbackOsg.h"
 #include "InteractionProfile.h"
 #include "Subaction.h"
 #include "projection.h"
@@ -91,7 +92,7 @@ XRState::XRSwapchain::XRSwapchain(XRState *state,
         {
             depthTextures = &getDepthImageTextures();
             if (textures.size() != depthTextures->size())
-                OSG_WARN << "Depth swapchain image count mismatch, expected " << textures.size() << ", got " << depthTextures->size() << std::endl;
+                OSG_WARN << "osgXR: Depth swapchain image count mismatch, expected " << textures.size() << ", got " << depthTextures->size() << std::endl;
         }
 
         _imageFramebuffers.reserve(textures.size());
@@ -133,7 +134,7 @@ void XRState::XRSwapchain::setupImage(const osg::FrameStamp *stamp)
         imageIndex = acquireImages();
         if (imageIndex < 0 || (unsigned int)imageIndex >= _imageFramebuffers.size())
         {
-            OSG_WARN << "XRView::preDrawCallback(): Failure to acquire OpenXR swapchain image (got image index " << imageIndex << ")" << std::endl;
+            OSG_WARN << "osgXR: Failure to acquire OpenXR swapchain image (got image index " << imageIndex << ")" << std::endl;
             return;
         }
         _imageFramebuffers.setStamp(imageIndex, stamp);
@@ -164,7 +165,7 @@ void XRState::XRSwapchain::preDrawCallback(osg::RenderInfo &renderInfo)
         // Wait for the image to be ready to render into
         if (!waitImages(100e6 /* 100ms */))
         {
-            OSG_WARN << "XRView::preDrawCallback(): Failure to wait for OpenXR swapchain image" << std::endl;
+            OSG_WARN << "osgXR: Failure to wait for OpenXR swapchain image" << std::endl;
 
             // Unclear what the best course of action is here...
             fbo->unbind(state);
@@ -294,7 +295,7 @@ void XRState::XRView::endFrame(OpenXR::Session::Frame *frame)
     }
     else
     {
-        OSG_WARN << "No projection layer" << std::endl;
+        OSG_WARN << "osgXR: No projection layer" << std::endl;
     }
 }
 
@@ -506,6 +507,39 @@ const char *XRState::getStateString() const
         }
     }
 
+    // Find last error
+    OpenXR::Instance::Result error{};
+    const char *errorType[] = {
+        "Failed to ",
+        "Previously failed to ",
+    };
+    const OpenXR::Instance::Result *errorp[2] = {
+        &error,
+        &_lastRunError,
+    };
+    if (_instance.valid())
+        _instance->getError(error);
+    else
+        errorp[0] = &_lastError;
+
+    // If there was a failure, report it
+    for (unsigned int i = 0; i < 2; ++i)
+    {
+        auto *curError = errorp[i];
+        if (curError->failed())
+        {
+            out += "\n  ";
+            out += errorType[i];
+            out += curError->action;
+            out += " (";
+            if (curError->resultName[0] == '\0')
+                out += std::to_string(curError->result);
+            else
+                out += curError->resultName;
+            out += ")";
+        }
+    }
+
     _stateString = out;
     return _stateString.c_str();
 }
@@ -640,6 +674,10 @@ void XRState::update()
             // Sync actions
             if (_session.valid())
                 _session->syncActions();
+
+            // Check for session lost
+            if (_session.valid() && _session->isLost())
+                setDownState(VRSTATE_INSTANCE);
 
             // Check for instance lost
             if (_instance->lost())
@@ -859,17 +897,29 @@ XRState::UpResult XRState::upInstance()
 
     _instance = new OpenXR::Instance();
     _instance->setValidationLayer(_settingsCopy.getValidationLayer());
+    _instance->setDebugUtils(true);
     _instance->setDepthInfo(true);
     _instance->setVisibilityMask(true);
+    auto severity = //XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                    XR_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+                    XR_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                    XR_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    auto types = XR_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                 XR_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                 XR_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+                 XR_DEBUG_UTILS_MESSAGE_TYPE_CONFORMANCE_BIT_EXT;
+    _instance->setDefaultDebugCallback(new DebugCallbackOsg(severity, types));
     switch (_instance->init(_settingsCopy.getAppName().c_str(),
                             _settingsCopy.getAppVersion()))
     {
     case OpenXR::Instance::INIT_SUCCESS:
         break;
     case OpenXR::Instance::INIT_LATER:
+        _instance->getError(_lastError);
         _instance = nullptr;
         return UP_LATER;
     case OpenXR::Instance::INIT_FAIL:
+        _instance->getError(_lastError);
         _instance = nullptr;
         return UP_ABORT;
     }
@@ -894,10 +944,14 @@ XRState::DownResult XRState::downInstance()
             subaction->cleanupInstance();
     }
 
+    _instance->deinit();
+
     if (_probed)
         unprobe();
 
     osg::observer_ptr<OpenXR::Instance> oldInstance = _instance;
+    _instance->getError(_lastRunError);
+    _lastError = {};
     _instance = nullptr;
     assert(!oldInstance.valid());
 
@@ -947,7 +1001,7 @@ XRState::UpResult XRState::upSystem()
     }
     if (!_chosenViewConfig)
     {
-        OSG_WARN << "XRState::XRState(): No supported view configuration" << std::endl;
+        OSG_WARN << "osgXR: No supported view configuration" << std::endl;
         _system = nullptr;
         return UP_ABORT;
     }
@@ -972,7 +1026,7 @@ XRState::UpResult XRState::upSystem()
     }
     if (_chosenEnvBlendMode == XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM)
     {
-        OSG_WARN << "XRState::XRState(): No supported environment blend mode" << std::endl;
+        OSG_WARN << "osgXR: No supported environment blend mode" << std::endl;
         _system = nullptr;
         return UP_ABORT;
     }
@@ -1060,9 +1114,9 @@ XRState::UpResult XRState::upSession()
 
     // Create session using the GraphicsWindow
     _session = new OpenXR::Session(_system, _window.get());
-    if (!_session)
+    if (!_session->valid())
     {
-        OSG_WARN << "XRState::init(): No suitable GraphicsWindow to create an OpenXR session" << std::endl;
+        _session = nullptr;
         return UP_ABORT;
     }
 
@@ -1105,7 +1159,7 @@ XRState::UpResult XRState::upSession()
         formats << std::hex;
         for (int64_t format: _session->getSwapchainFormats())
             formats << " 0x" << format;
-        OSG_WARN << "XRState::init(): No supported swapchain format found in ["
+        OSG_WARN << "osgXR: No supported projection swapchain format found in ["
                  << formats.str() << " ]" << std::endl;
         _session = nullptr;
         return UP_ABORT;
@@ -1130,7 +1184,7 @@ XRState::UpResult XRState::upSession()
             formats << std::hex;
             for (int64_t format: _session->getSwapchainFormats())
                 formats << " 0x" << format;
-            OSG_WARN << "XRState::init(): No supported depth swapchain format found in ["
+            OSG_WARN << "osgXR: No supported projection depth swapchain format found in ["
                 << formats.str() << " ]" << std::endl;
             _useDepthInfo = false;
         }
@@ -1144,7 +1198,7 @@ XRState::UpResult XRState::upSession()
                                       chosenDepthFormat,
                                       fallbackDepthFormat))
             {
-                _session = nullptr;
+                dropSessionCheck();
                 return UP_ABORT;
             }
             break;
@@ -1156,7 +1210,7 @@ XRState::UpResult XRState::upSession()
                                          chosenDepthFormat,
                                          fallbackDepthFormat))
             {
-                _session = nullptr;
+                dropSessionCheck();
                 return UP_ABORT;
             }
             break;
@@ -1180,7 +1234,17 @@ XRState::DownResult XRState::downSession()
 {
     assert(_session.valid());
 
-    if (_session->isRunning())
+    if (_session->isLost())
+    {
+        XrSessionState curState = _session->getState();
+        if (curState == XR_SESSION_STATE_FOCUSED)
+            onSessionStateUnfocus(_session);
+        if (_session->isRunning())
+            onSessionStateStopping(_session, true);
+        // Attempt restart
+        onSessionStateEnd(_session, true);
+    }
+    else if (_session->isRunning())
     {
         if (!_session->isExiting())
             _session->requestExit();
@@ -1213,9 +1277,7 @@ XRState::DownResult XRState::downSession()
         if (subaction)
             subaction->cleanupSession();
     }
-    osg::observer_ptr<OpenXR::Session> oldSession = _session;
-    _session = nullptr;
-    assert(!oldSession.valid());
+    dropSessionCheck();
 
     return DOWN_SUCCESS;
 }
@@ -1243,6 +1305,17 @@ XRState::DownResult XRState::downActions()
 {
     // Action setup cannot be undone
     return DOWN_SUCCESS;
+}
+
+bool XRState::dropSessionCheck()
+{
+    osg::observer_ptr<OpenXR::Session> oldSession = _session;
+    _session = nullptr;
+    if (oldSession.valid()) {
+        OSG_WARN << "osgXR: Session not cleaned up" << std::endl;
+        return false;
+    }
+    return true;
 }
 
 static void applyDefaultRGBEncoding(uint32_t &preferredRGBEncodingMask,
@@ -1516,6 +1589,11 @@ bool XRState::setupSingleSwapchain(int64_t format, int64_t depthFormat,
                                                             singleView, format,
                                                             depthFormat,
                                                             fallbackDepthFormat);
+    if (!xrSwapchain->valid()) {
+        OSG_WARN << "osgXR: Invalid single swapchain" << std::endl;
+        return false; // failure
+    }
+
     // And the views
     _xrViews.reserve(views.size());
     for (uint32_t i = 0; i < views.size(); ++i)
@@ -1546,6 +1624,11 @@ bool XRState::setupMultipleSwapchains(int64_t format, int64_t depthFormat,
                                                                 vcView, format,
                                                                 depthFormat,
                                                                 fallbackDepthFormat);
+        if (!xrSwapchain->valid()) {
+            OSG_WARN << "osgXR: Invalid swapchain for view " << i << std::endl;
+            _xrViews.resize(0);
+            return false; // failure
+        }
         osg::ref_ptr<XRView> xrView = new XRView(this, i, xrSwapchain);
         if (!xrView.valid())
         {
@@ -1585,7 +1668,7 @@ void XRState::setupSlaveCameras()
             if (!_view->addSlave(cam.get(), osg::Matrix::identity(),
                                  osg::Matrix::identity(), true))
             {
-                OSG_WARN << "XRState::init(): Couldn't add slave camera" << std::endl;
+                OSG_WARN << "osgXR: Couldn't add slave camera" << std::endl;
                 continue;
             }
 
@@ -1632,14 +1715,14 @@ void XRState::setupSceneViewCameras()
                 osg::ref_ptr<osg::Camera> slaveCam = _view->getSlave(i)._camera;
                 if (slaveCam->getRenderTargetImplementation() == osg::Camera::FRAME_BUFFER)
                 {
-                    OSG_WARN << "XRState::setupSceneViewCameras(): slave " << slaveCam->getName() << std::endl;
+                    OSG_WARN << "osgXR: slave " << slaveCam->getName() << std::endl;
                     _appViews[0]->addSlave(slaveCam);
                 }
             }
 
             if (!_xrViews[0]->getSwapchain()->getNumDrawPasses())
             {
-                OSG_WARN << "XRState::setupSceneViewCameras(): Failed to find suitable slave camera" << std::endl;
+                OSG_WARN << "osgXR: Failed to find suitable slave camera" << std::endl;
                 return;
             }
         }
@@ -1761,12 +1844,12 @@ void XRState::endFrame(osg::FrameStamp *stamp)
     osg::ref_ptr<OpenXR::Session::Frame> frame = _frames.getFrame(stamp);
     if (!frame.valid())
     {
-        OSG_WARN << "OpenXR frame not waited for" << std::endl;
+        OSG_WARN << "osgXR: OpenXR frame not waited for" << std::endl;
         return;
     }
     if (!frame->hasBegun())
     {
-        OSG_WARN << "OpenXR frame not begun" << std::endl;
+        OSG_WARN << "osgXR: OpenXR frame not begun" << std::endl;
         _frames.killFrame(stamp);
         return;
     }

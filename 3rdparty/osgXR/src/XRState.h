@@ -305,7 +305,7 @@ class XRState : public OpenXR::EventHandler
         {
             if (_currentState < VRSTATE_SESSION)
                 return false;
-            return _session->isRunning();
+            return _session->isRunning() && !_session->isLost();
         }
 
         /// Set whether probing should be active.
@@ -564,6 +564,9 @@ class XRState : public OpenXR::EventHandler
         UpResult upActions();
         DownResult downActions();
 
+        // Drop the _session and check it gets cleaned up
+        bool dropSessionCheck();
+
         // Set up a single swapchain containing multiple viewports
         bool setupSingleSwapchain(int64_t format, int64_t depthFormat = 0,
                                   GLenum fallbackDepthFormat = 0);
@@ -635,6 +638,8 @@ class XRState : public OpenXR::EventHandler
         osg::ref_ptr<OpenXR::Instance> _instance;
         bool _useDepthInfo;
         bool _useVisibilityMask;
+        OpenXR::Instance::Result _lastError;
+        OpenXR::Instance::Result _lastRunError;
 
         // System related
         XrFormFactor _formFactor;

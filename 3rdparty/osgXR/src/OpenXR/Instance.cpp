@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-only
 // Copyright (C) 2021 James Hogan <james@albanarts.com>
 
+#include "DebugUtilsMessenger.h"
 #include "EventHandler.h"
 #include "Instance.h"
 #include "Session.h"
@@ -49,7 +50,7 @@ static bool enumerateLayers(bool invalidate = false)
     XrResult res = xrEnumerateApiLayerProperties(0, &layerCount, nullptr);
     if (XR_FAILED(res))
     {
-        OSG_WARN << "Failed to count OpenXR API layers: " << res << std::endl;
+        OSG_WARN << "osgXR: Failed to count OpenXR API layers: " << res << std::endl;
         return false;
     }
 
@@ -67,7 +68,7 @@ static bool enumerateLayers(bool invalidate = false)
         res = xrEnumerateApiLayerProperties(layers.size(), &layerCount, layers.data());
         if (XR_FAILED(res))
         {
-            OSG_WARN << "Failed to enumerate " << layerCount
+            OSG_WARN << "osgXR: Failed to enumerate " << layerCount
                      << " OpenXR API layers: " << res << std::endl;
             return false;
         }
@@ -99,7 +100,7 @@ static bool enumerateExtensions(bool invalidate = false)
     XrResult res = xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionCount, nullptr);
     if (XR_FAILED(res))
     {
-        OSG_WARN << "Failed to count OpenXR instance extensions: " << res << std::endl;
+        OSG_WARN << "osgXR: Failed to count OpenXR instance extensions: " << res << std::endl;
         return false;
     }
 
@@ -118,7 +119,7 @@ static bool enumerateExtensions(bool invalidate = false)
                                                      &extensionCount, extensions.data());
         if (XR_FAILED(res))
         {
-            OSG_WARN << "Failed to enumerate " << extensionCount
+            OSG_WARN << "osgXR: Failed to enumerate " << extensionCount
                      << " OpenXR instance extensions: " << res << std::endl;
             return false;
         }
@@ -177,6 +178,7 @@ Instance *Instance::instance()
 
 Instance::Instance(): 
     _layerValidation(false),
+    _debugUtils(false),
     _depthInfo(false),
     _visibilityMask(true),
     _instance(XR_NULL_HANDLE),
@@ -186,7 +188,7 @@ Instance::Instance():
 
 Instance::~Instance()
 {
-    if (_instance != XR_NULL_HANDLE)
+    if (valid())
     {
         // Delete the systems
         for (System *system: _systems)
@@ -198,14 +200,20 @@ Instance::~Instance()
         XrResult res = xrDestroyInstance(_instance);
         if (XR_FAILED(res))
         {
-            OSG_WARN << "Failed to destroy OpenXR instance" << std::endl;
+            OSG_WARN << "osgXR: Failed to destroy OpenXR instance" << std::endl;
         }
     }
 }
 
+void Instance::setDefaultDebugCallback(OpenXR::DebugUtilsCallback *callback)
+{
+    if (!valid())
+        _defaultDebugCallback = callback;
+}
+
 Instance::InitResult Instance::init(const char *appName, uint32_t appVersion)
 {
-    if (_instance != XR_NULL_HANDLE)
+    if (valid())
     {
         return INIT_SUCCESS;
     }
@@ -222,10 +230,20 @@ Instance::InitResult Instance::init(const char *appName, uint32_t appVersion)
     // We need OpenGL support
     if (!hasExtension(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME))
     {
-        OSG_WARN << "OpenXR runtime doesn't support XR_KHR_opengl_enable extension" << std::endl;
+        OSG_WARN << "osgXR: OpenXR runtime doesn't support XR_KHR_opengl_enable extension" << std::endl;
         return INIT_FAIL;
     }
     extensionNames.push_back(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME);
+
+    // Enable debug utils if supported
+    _supportsDebugUtils = hasExtension(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    if (_debugUtils)
+    {
+        if (_supportsDebugUtils)
+            extensionNames.push_back(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        else
+            _debugUtils = false;
+    }
 
     // Enable depth composition layer support if supported
     _supportsCompositionLayerDepth = hasExtension(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
@@ -261,20 +279,43 @@ Instance::InitResult Instance::init(const char *appName, uint32_t appVersion)
     info.enabledExtensionCount = extensionNames.size();
     info.enabledExtensionNames = extensionNames.data();
 
-    XrResult res = xrCreateInstance(&info, &_instance);
-    if (XR_FAILED(res))
+
+    DebugUtilsCallback::CreateInfo debugCallback;
+    if (_debugUtils && _defaultDebugCallback.valid())
     {
-        OSG_WARN << "Failed to create OpenXR instance: " << res << std::endl;
+        _defaultDebugCallback->writeCreateInfo(&debugCallback);
+        info.next = &debugCallback;
+    }
+
+    XrResult res = xrCreateInstance(&info, &_instance);
+    if (!check(res, "create OpenXR instance"))
+    {
         // cast to handle XR_ERROR_RUNTIME_UNAVAILABLE as a preprocessor define
         switch ((int)res)
         {
-        case XR_ERROR_INSTANCE_LOST: // prior to 1.0.16
-        case XR_ERROR_RUNTIME_UNAVAILABLE: // since 1.0.16
-        case XR_ERROR_RUNTIME_FAILURE: // Monado returns this when not running
+        // prior to OpenXR 1.0.16
+        case XR_ERROR_INSTANCE_LOST:
+        // since OpenXR 1.0.16
+        case XR_ERROR_RUNTIME_UNAVAILABLE:
+        // Monado returns this when service not running
+        case XR_ERROR_RUNTIME_FAILURE:
             return INIT_LATER;
 
         default:
             return INIT_FAIL;
+        }
+    }
+
+    if (_debugUtils)
+    {
+        _xrCreateDebugUtilsMessengerEXT  = (PFN_xrCreateDebugUtilsMessengerEXT)  getProcAddr("xrCreateDebugUtilsMessengerEXT");
+        if (_defaultDebugCallback.valid())
+        {
+            _defaultDebugMessenger = new DebugUtilsMessenger(this, _defaultDebugCallback);
+            if (!_defaultDebugMessenger->valid()) {
+                OSG_WARN << "osgXR: Failed to create default debug utils messenger" << std::endl;
+                _defaultDebugMessenger = nullptr;
+            }
         }
     }
 
@@ -284,7 +325,7 @@ Instance::InitResult Instance::init(const char *appName, uint32_t appVersion)
 
     if (XR_SUCCEEDED(xrGetInstanceProperties(_instance, &_properties)))
     {
-        OSG_INFO << "OpenXR Runtime: \"" << _properties.runtimeName
+        OSG_INFO << "osgXR: OpenXR Runtime: \"" << _properties.runtimeName
                  << "\" version " << XR_VERSION_MAJOR(_properties.runtimeVersion)
                  << "." << XR_VERSION_MINOR(_properties.runtimeVersion)
                  << "." << XR_VERSION_PATCH(_properties.runtimeVersion) << std::endl;
@@ -293,28 +334,48 @@ Instance::InitResult Instance::init(const char *appName, uint32_t appVersion)
 
     // Get extension functions
     _xrGetOpenGLGraphicsRequirementsKHR = (PFN_xrGetOpenGLGraphicsRequirementsKHR)getProcAddr("xrGetOpenGLGraphicsRequirementsKHR");
+    if (_debugUtils)
+    {
+        _xrSetDebugUtilsObjectNameEXT           = (PFN_xrSetDebugUtilsObjectNameEXT)           getProcAddr("xrSetDebugUtilsObjectNameEXT");
+        // _xrCreateDebugUtilsMessengerEXT already obtained above
+        _xrDestroyDebugUtilsMessengerEXT        = (PFN_xrDestroyDebugUtilsMessengerEXT)        getProcAddr("xrDestroyDebugUtilsMessengerEXT");
+        _xrSubmitDebugUtilsMessageEXT           = (PFN_xrSubmitDebugUtilsMessageEXT)           getProcAddr("xrSubmitDebugUtilsMessageEXT");
+        _xrSessionBeginDebugUtilsLabelRegionEXT = (PFN_xrSessionBeginDebugUtilsLabelRegionEXT) getProcAddr("xrSessionBeginDebugUtilsLabelRegionEXT");
+        _xrSessionEndDebugUtilsLabelRegionEXT   = (PFN_xrSessionEndDebugUtilsLabelRegionEXT)   getProcAddr("xrSessionEndDebugUtilsLabelRegionEXT");
+        _xrSessionInsertDebugUtilsLabelEXT      = (PFN_xrSessionInsertDebugUtilsLabelEXT)      getProcAddr("xrSessionInsertDebugUtilsLabelEXT");
+    }
     if (_visibilityMask)
         _xrGetVisibilityMaskKHR = (PFN_xrGetVisibilityMaskKHR)getProcAddr("xrGetVisibilityMaskKHR");
 
     return INIT_SUCCESS;
 }
 
-bool Instance::check(XrResult result, const char *warnMsg) const
+void Instance::deinit()
+{
+    // Destroy the default debug messenger so it doesn't prevent destruction
+    _defaultDebugMessenger = nullptr;
+}
+
+bool Instance::check(XrResult result, const char *actionMsg) const
 {
     if (XR_FAILED(result))
     {
         if (result == XR_ERROR_INSTANCE_LOST)
             _lost = true;
 
+        _lastError.action = actionMsg;
         char resultName[XR_MAX_RESULT_STRING_SIZE];
-        if (XR_FAILED(xrResultToString(_instance, result, resultName)))
+        if (!valid() || XR_FAILED(xrResultToString(_instance, result, resultName)))
         {
-            OSG_WARN << warnMsg << ": " << result << std::endl;
+            OSG_WARN << "osgXR: Failed to " << actionMsg << ": " << result << std::endl;
+            _lastError.resultName[0] = '\0';
         }
         else
         {
-            OSG_WARN << warnMsg << ": " << resultName << std::endl;
+            OSG_WARN << "osgXR: Failed to " << actionMsg << ": " << resultName << std::endl;
+            strncpy(_lastError.resultName, resultName, XR_MAX_RESULT_STRING_SIZE);
         }
+        _lastError.result = result;
         return false;
     }
     return true;
@@ -324,7 +385,7 @@ PFN_xrVoidFunction Instance::getProcAddr(const char *name) const
 {
     PFN_xrVoidFunction ret = nullptr;
     check(xrGetInstanceProcAddr(_instance, name, &ret),
-          "Failed to get OpenXR procedure address");
+          "get OpenXR procedure address");
     return ret;
 }
 
@@ -350,7 +411,7 @@ System *Instance::getSystem(XrFormFactor formFactor, bool *supported)
             *supported = true;
         return nullptr;
     }
-    else if (check(res, "Failed to get OpenXR system"))
+    else if (check(res, "get OpenXR system"))
     {
         if (ffId >= _systems.size())
             _systems.resize(ffId+1, nullptr);

@@ -19,7 +19,8 @@ Swapchain::Swapchain(osg::ref_ptr<Session> session,
     _height(view.getRecommendedHeight()),
     _samples(view.getRecommendedSamples()),
     _format(format),
-    _readImageTextures(false)
+    _readImageTextures(false),
+    _released(false)
 {
     XrSwapchainCreateInfo createInfo{ XR_TYPE_SWAPCHAIN_CREATE_INFO };
     createInfo.usageFlags = usageFlags;
@@ -38,7 +39,7 @@ Swapchain::Swapchain(osg::ref_ptr<Session> session,
 
     // GL context must not be bound in another thread
     check(xrCreateSwapchain(getXrSession(), &createInfo, &_swapchain),
-          "Failed to create OpenXR swapchain");
+          "create OpenXR swapchain");
 
     if (restoreAction == Session::CONTEXT_RESTORE)
         _session->makeCurrent();
@@ -52,7 +53,7 @@ Swapchain::~Swapchain()
     {
         // GL context must not be bound in another thread
         check(xrDestroySwapchain(_swapchain),
-              "Failed to destroy OpenXR swapchain");
+              "destroy OpenXR swapchain");
     }
 }
 
@@ -64,14 +65,14 @@ const Swapchain::ImageTextures &Swapchain::getImageTextures() const
         uint32_t imageCount;
         // GL context must not be bound in another thread
         if (check(xrEnumerateSwapchainImages(_swapchain, 0, &imageCount, nullptr),
-                  "Failed to count OpenXR swapchain images"))
+                  "count OpenXR swapchain images"))
         {
             if (imageCount)
             {
                 std::vector<XrSwapchainImageOpenGLKHR> images(imageCount, { XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR });
                 if (check(xrEnumerateSwapchainImages(_swapchain, images.size(), &imageCount,
                                                      (XrSwapchainImageBaseHeader *)images.data()),
-                          "Failed to enumerate OpenXR swapchain images"))
+                          "enumerate OpenXR swapchain images"))
                 {
                     for (auto image: images)
                         _imageTextures.push_back(image.image);
@@ -120,7 +121,7 @@ int Swapchain::acquireImage() const
     bool restoreContext = _session->shouldRestoreContext();
     // GL context must not be bound in another thread
     if (check(xrAcquireSwapchainImage(_swapchain, nullptr, &imageIndex),
-              "Failed to acquire swapchain image"))
+              "acquire swapchain image"))
     {
         if (restoreContext)
             _session->makeCurrent();
@@ -143,7 +144,7 @@ bool Swapchain::waitImage(XrDuration timeoutNs) const
     bool restoreContext = _session->shouldRestoreContext();
     // GL context must not be bound in another thread
     bool ret = check(xrWaitSwapchainImage(_swapchain, &waitInfo),
-                     "Failed to wait for swapchain image");
+                     "wait for swapchain image");
 
     if (restoreContext)
         _session->makeCurrent();
@@ -156,8 +157,9 @@ void Swapchain::releaseImage() const
     // Release the swapchain image
     bool restoreContext = _session->shouldRestoreContext();
     // GL context must not be bound in another thread
-    check(xrReleaseSwapchainImage(_swapchain, nullptr),
-          "Failed to release OpenXR swapchain image");
+    if (check(xrReleaseSwapchainImage(_swapchain, nullptr),
+              "release OpenXR swapchain image"))
+        _released = true;
 
     if (restoreContext)
         _session->makeCurrent();

@@ -43,10 +43,7 @@ class Session : public osg::Referenced
             return _session != XR_NULL_HANDLE;
         }
 
-        inline bool check(XrResult result, const char *warnMsg) const
-        {
-            return _system->check(result, warnMsg);
-        }
+        bool check(XrResult result, const char *actionMsg) const;
 
         // Action set attachment
 
@@ -109,6 +106,12 @@ class Session : public osg::Referenced
         inline bool isExiting() const
         {
             return _exiting;
+        }
+
+        // Find whether the session has been lost
+        inline bool isLost() const
+        {
+            return _lost || _instance->lost();
         }
 
         inline osgViewer::GraphicsWindow *getWindow() const
@@ -285,9 +288,9 @@ class Session : public osg::Referenced
 
                 // Error checking
 
-                inline bool check(XrResult result, const char *warnMsg) const
+                inline bool check(XrResult result, const char *actionMsg) const
                 {
-                    return _session->check(result, warnMsg);
+                    return _session->check(result, actionMsg);
                 }
 
                 // Accessors
@@ -413,9 +416,9 @@ class Session : public osg::Referenced
 
         // OpenXR extension wrappers
         XrResult xrGetVisibilityMask(const System::ViewConfiguration &viewConfiguration,
-                                   uint32_t viewIndex,
-                                   XrVisibilityMaskTypeKHR visibilityMaskType,
-                                   XrVisibilityMaskKHR *visibilityMask)
+                                     uint32_t viewIndex,
+                                     XrVisibilityMaskTypeKHR visibilityMaskType,
+                                     XrVisibilityMaskKHR *visibilityMask) const
         {
             return _instance->xrGetVisibilityMask(_session,
                                                   viewConfiguration.getType(),
@@ -444,6 +447,7 @@ class Session : public osg::Referenced
         XrSessionState _state;
         bool _running;
         bool _exiting;
+        mutable bool _lost;
 
         // Swapchain formats
         mutable bool _readSwapchainFormats;

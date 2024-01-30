@@ -37,9 +37,15 @@ class Swapchain : public osg::Referenced
             return _swapchain != XR_NULL_HANDLE;
         }
 
-        inline bool check(XrResult result, const char *warnMsg) const
+        /// Find whether the swapchain has a released image.
+        inline bool released() const
         {
-            return _session->check(result, warnMsg);
+            return _released;
+        }
+
+        inline bool check(XrResult result, const char *actionMsg) const
+        {
+            return _session->check(result, actionMsg);
         }
 
         // Conversions
@@ -108,8 +114,7 @@ class Swapchain : public osg::Referenced
         mutable ImageTextures _imageTextures;
         mutable std::vector<osg::ref_ptr<osg::Texture2D>> _imageOsgTextures;
 
-        // Current image
-        mutable int _currentImage;
+        mutable bool _released;
 };
 
 } // osgXR::OpenXR
