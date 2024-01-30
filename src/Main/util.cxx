@@ -72,6 +72,36 @@ fgGetLowPass (double current, double target, double timeratio)
     return current;
 }
 
+namespace {
+double innerLowPassPeriodic(double current, double target, double timeratio)
+{
+    auto currentSigned = SGMiscd::normalizePeriodic(-180.0, 180.0, current);
+    auto targetSigned = SGMiscd::normalizePeriodic(-180.0, 180.0, target);
+    if (fabs(currentSigned - targetSigned) > 180.0) {
+        // value are 'opposite ends', bring them close together so
+        // fgGetLowPass doesn't see the discontinuity
+        // we offset target by 360 in the 'same direction' as current
+        // via copysign
+        targetSigned += copysign(360, currentSigned);
+    }
+
+    return fgGetLowPass(currentSigned, targetSigned, timeratio);
+}
+} // namespace
+
+double
+flightgear::lowPassPeriodicDegreesPositive(double current, double target, double timeratio)
+{
+    return SGMiscd::normalizePeriodic(0.0, 360.0, innerLowPassPeriodic(current, target, timeratio));
+}
+
+double
+flightgear::lowPassPeriodicDegreesSigned(double current, double target, double timeratio)
+{
+    return SGMiscd::normalizePeriodic(-180.0, 180.0, innerLowPassPeriodic(current, target, timeratio));
+}
+
+
 /**
  * Allowed paths here are absolute, and may contain _one_ *,
  * which matches any string

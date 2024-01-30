@@ -36,6 +36,7 @@
  */
 double fgGetLowPass (double current, double target, double timeratio);
 
+
 /**
  * Set the read and write lists of allowed paths patterns for SGPath::validate()
  */
@@ -50,6 +51,28 @@ namespace flightgear
      * @return
      */
     std::string getAircraftAuthorsText();
+
+    /**
+     * @brief low-pass filter for bearings, etc in degrees. Inputs can have any sign
+     * and output is always in the range [-180.0 .. 180.0]. Ranges of inputs do not
+     * have to be consistent, they will be normalised before filtering.
+     * 
+     * @param current - current value in degrees
+     * @param target  - target (new) value in degrees.
+     * @param timeratio - 
+     */
+    double lowPassPeriodicDegreesSigned(double current, double target, double timeratio);
+
+    /**
+     * @brief low-pass filter for bearings, etc in degrees. Inputs can have any sign
+     * and output is always in the range [0.0 .. 360.0]. Ranges of inputs do not
+     * have to be consistent, they will be normalised before filtering.
+     * 
+     * @param current - current value in degrees
+     * @param target  - target (new) value in degrees.
+     * @param timeratio - 
+     */
+    double lowPassPeriodicDegreesPositive(double current, double target, double timeratio);
 }
 
 #endif // __UTIL_HXX
