@@ -33,31 +33,58 @@
 using std::string;
 
 /*
- * surface codes
- * 1 - asphalt
- * 2 - concrete
+ * surface codes, defined here (as of Jan 2024) https://developer.x-plane.com/article/airport-data-apt-dat-12-00-file-format-specification/
+ * 1,20-38 - asphalt
+ * 2,50-57 - concrete
  * 3 - turf
  * 4 - dirt
  * 5 - gravel
- * 6 - asphalt helipad
- * 7 - concrete helipad
- * 8 - turf helipad
- * 9 - dirt helipad
- * 12 -  lakebed
+ * 12 - lakebed
+ * 13 - water runway
+ * 14 - snow or ice
+ * 15 - Transparent
  */
 const char * FGRunwayBase::surfaceName( int surface_code )
 {
   switch( surface_code ) {
-    case 1: return "asphalt";
-    case 2: return "concrete";
+    case 1:
+    case 20: // Light colored asphalt
+    case 21:
+    case 22:
+    case 23:
+    case 24: // Asphalt
+    case 25:
+    case 26:
+    case 27: // Darker colored asphalt
+    case 28:
+    case 29:
+    case 30:
+    case 31: // Very dark colored asphalt
+    case 32:
+    case 33:
+    case 34:
+    case 35: // Near black, ‘new’ looking asphalt
+    case 36:
+    case 37:
+    case 38:
+      return "asphalt";
+    case 2:
+    case 50: // Light “new” looking concrete
+    case 51:
+    case 52:
+    case 53: // Concrete
+    case 54:
+    case 55: // Dark concrete
+    case 56:
+    case 57:
+      return "concrete";
     case 3: return "turf";
     case 4: return "dirt";
     case 5: return "gravel";
-    case 6: return "asphalt helipad";
-    case 7: return "concrete helipad";
-    case 8: return "turf helipad";
-    case 9: return "dirt helipad";
     case 12: return "lakebed";
+    case 13: return "water";
+    case 14: return "ice";
+    case 15: return "transparent";
     default: return "unknown";
   }
 }
@@ -92,7 +119,7 @@ SGGeod FGRunwayBase::pointOffCenterline(double aOffset, double lateralOffset) co
 
 bool FGRunwayBase::isHardSurface() const
 {
-  return ((_surface_code == 1) || (_surface_code == 2));
+  return ((_surface_code == 1 || (_surface_code >= 20 && _surface_code <= 38)) || (_surface_code == 2 || (_surface_code >= 50 && _surface_code <= 57)));
 }
 
 FGTaxiway::FGTaxiway(PositionedID aGuid,

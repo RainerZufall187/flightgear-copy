@@ -165,7 +165,7 @@ void KLN89AptPage::Update(double dt) {
 			// I guess we can make a heuristic guess as to fuel availability from the runway sizes
 			// For now assume that airports with asphalt or concrete runways will have at least 100L,
 			// and that runways over 4000ft will have JET.
-			if(_aptRwys[0]->surface() <= 2) {
+			if(_aptRwys[0]->isHardSurface()) {
 				if(_aptRwys[0]->lengthFt() >= 4000) {
 					_kln89->DrawText("JET 100L", 2, 0, 1);
 				} else {
@@ -199,9 +199,34 @@ void KLN89AptPage::Update(double dt) {
 				// TODO: why not store these strings as an array?
 				switch(_aptRwys[i]->surface()) {
 				case 1:
-					// Asphalt - fall through
-				case 2:
-					// Concrete
+				case 20: // Light colored asphalt
+				case 21:
+				case 22:
+				case 23:
+				case 24: // Asphalt
+				case 25:
+				case 26:
+				case 27: // Darker colored asphalt
+				case 28:
+				case 29:
+				case 30:
+				case 31: // Very dark colored asphalt
+				case 32:
+				case 33:
+				case 34:
+				case 35: // Near black, ‘new’ looking asphalt
+				case 36:
+				case 37:
+				case 38:
+				case 2:  //Concrete
+				case 50: // Light “new” looking concrete
+				case 51:
+				case 52:
+				case 53: // Concrete
+				case 54:
+				case 55: // Dark concrete
+				case 56:
+				case 57:
 					_kln89->DrawText("HRD", 2, 9, 2);
 					break;
 				case 3:
@@ -249,9 +274,34 @@ void KLN89AptPage::Update(double dt) {
 				// TODO: why not store these strings as an array?
 				switch(_aptRwys[i]->surface()) {
 				case 1:
-					// Asphalt - fall through
-				case 2:
-					// Concrete
+				case 20: // Light colored asphalt
+				case 21:
+				case 22:
+				case 23:
+				case 24: // Asphalt
+				case 25:
+				case 26:
+				case 27: // Darker colored asphalt
+				case 28:
+				case 29:
+				case 30:
+				case 31: // Very dark colored asphalt
+				case 32:
+				case 33:
+				case 34:
+				case 35: // Near black, ‘new’ looking asphalt
+				case 36:
+				case 37:
+				case 38:
+				case 2:  //Concrete
+				case 50: // Light “new” looking concrete
+				case 51:
+				case 52:
+				case 53: // Concrete
+				case 54:
+				case 55: // Dark concrete
+				case 56:
+				case 57:
 					_kln89->DrawText("HRD", 2, 9, 0);
 					break;
 				case 3:
