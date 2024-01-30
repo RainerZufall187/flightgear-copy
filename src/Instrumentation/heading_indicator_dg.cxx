@@ -281,14 +281,7 @@ HeadingIndicatorDG::update (double dt)
     error = SGMiscd::normalizePeriodic(-180.0, 180.0, error);
     _error_node->setDoubleValue(error);
 
-    // Bring heading to the same range as errors for calculation. Otherwise the low-pass filter will
-    // get confused.
-    heading = SGMiscd::normalizePeriodic(-180.0, 180.0, heading);
-    _last_indicated_heading_dg = SGMiscd::normalizePeriodic(-180.0, 180.0, _last_indicated_heading_dg);
-
-    heading = fgGetLowPass(_last_indicated_heading_dg, heading, dt * 100 * factor);
-    _last_indicated_heading_dg = heading;
-
+    heading = flightgear::lowPassPeriodicDegreesPositive(_last_indicated_heading_dg, heading, dt * 100 * factor);
     heading += offset + align + error;
     heading = SGMiscd::normalizePeriodic(0.0,360.0,heading);
 
