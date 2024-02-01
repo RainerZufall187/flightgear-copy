@@ -41,43 +41,6 @@ using std::string;
 // Default property bindings (not yet handled by any module).
 ////////////////////////////////////////////////////////////////////////
 
-struct LogClassMapping {
-  sgDebugClass c;
-  string name;
-  LogClassMapping(sgDebugClass cc, string nname) { c = cc; name = nname; }
-};
-
-LogClassMapping log_class_mappings [] = {
-  LogClassMapping(SG_NONE, "none"),
-  LogClassMapping(SG_TERRAIN, "terrain"),
-  LogClassMapping(SG_ASTRO, "astro"),
-  LogClassMapping(SG_FLIGHT, "flight"),
-  LogClassMapping(SG_INPUT, "input"),
-  LogClassMapping(SG_GL, "gl"),
-  LogClassMapping(SG_VIEW, "view"),
-  LogClassMapping(SG_COCKPIT, "cockpit"),
-  LogClassMapping(SG_GENERAL, "general"),
-  LogClassMapping(SG_MATH, "math"),
-  LogClassMapping(SG_EVENT, "event"),
-  LogClassMapping(SG_AIRCRAFT, "aircraft"),
-  LogClassMapping(SG_AUTOPILOT, "autopilot"),
-  LogClassMapping(SG_IO, "io"),
-  LogClassMapping(SG_CLIPPER, "clipper"),
-  LogClassMapping(SG_NETWORK, "network"),
-  LogClassMapping(SG_INSTR, "instrumentation"),
-  LogClassMapping(SG_ATC, "atc"),
-  LogClassMapping(SG_NASAL, "nasal"),
-  LogClassMapping(SG_SYSTEMS, "systems"),
-  LogClassMapping(SG_AI, "ai"),
-  LogClassMapping(SG_ENVIRONMENT, "environment"),
-  LogClassMapping(SG_SOUND, "sound"),
-  LogClassMapping(SG_NAVAID, "navaid"),
-  LogClassMapping(SG_GUI, "gui"),
-  LogClassMapping(SG_TERRASYNC, "terrasync"),
-  LogClassMapping(SG_UNDEFD, "")
-};
-
-
 /**
  * Get the logging classes.
  */
@@ -91,30 +54,14 @@ string loggingResult;
 static const char *
 getLoggingClasses ()
 {
-  sgDebugClass classes = sglog().get_log_classes();
-  loggingResult.clear();
-  for (int i = 0; log_class_mappings[i].c != SG_UNDEFD; i++) {
-    if ((classes&log_class_mappings[i].c) > 0) {
-      if (!loggingResult.empty())
-	loggingResult += '|';
-      loggingResult += log_class_mappings[i].name;
-    }
-  }
-  return loggingResult.c_str();
+    loggingResult = sglog().getLogClassesAsString();
+    return loggingResult.c_str();
 }
-
 
 static void
 addLoggingClass (const string &name)
 {
-  sgDebugClass classes = sglog().get_log_classes();
-  for (int i = 0; log_class_mappings[i].c != SG_UNDEFD; i++) {
-    if (name == log_class_mappings[i].name) {
-      sglog().set_log_classes(sgDebugClass(classes|log_class_mappings[i].c));
-      return;
-    }
-  }
-  SG_LOG(SG_GENERAL, SG_WARN, "Unknown logging class: " << name);
+    sglog().addLogClass(name);
 }
 
 
@@ -124,39 +71,8 @@ addLoggingClass (const string &name)
 void
 setLoggingClasses (const char * c)
 {
-  string classes = c;
-  sglog().set_log_classes(SG_NONE);
-
-  if (classes == "none") {
-    SG_LOG(SG_GENERAL, SG_INFO, "Disabled all logging classes");
-    return;
-  }
-
-  if (classes.empty() || classes == "all") { // default
-    sglog().set_log_classes(SG_ALL);
-    SG_LOG(SG_GENERAL, SG_INFO, "Enabled all logging classes: "
-	   << getLoggingClasses());
-    return;
-  }
-
-  string rest = classes;
-  string name = "";
-  string::size_type sep = rest.find('|');
-  if (sep == string::npos)
-    sep = rest.find(',');
-  while (sep != string::npos) {
-    name = rest.substr(0, sep);
-    rest = rest.substr(sep+1);
-    addLoggingClass(name);
-    sep = rest.find('|');
-    if (sep == string::npos)
-      sep = rest.find(',');
-  }
-  addLoggingClass(rest);
-  SG_LOG(SG_GENERAL, SG_INFO, "Set logging classes to "
-	 << getLoggingClasses());
+    sglog().parseLogClasses(c);
 }
-
 
 /**
  * Get the logging priority.
@@ -503,7 +419,6 @@ FGProperties::update (double dt)
 // Register the subsystem.
 SGSubsystemMgr::Registrant<FGProperties> registrantFGProperties;
 
-
 ////////////////////////////////////////////////////////////////////////
 // Save and restore.
 ////////////////////////////////////////////////////////////////////////
