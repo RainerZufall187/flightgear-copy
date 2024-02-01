@@ -59,7 +59,7 @@ bool FGAV400::gen_message() {
     }
     deg = (int)latd;
     min = (latd - (double)deg) * 60.0 * 100.0;
-    sprintf( msg_A, "A%c %02d %04.0f\r\n", dir, deg, min);
+    snprintf( msg_A, 32, "A%c %02d %04.0f\r\n", dir, deg, min);
 
     // create msg_B
     double lond = fdm.get_Longitude() * SGD_RADIANS_TO_DEGREES;
@@ -71,7 +71,7 @@ bool FGAV400::gen_message() {
     }
     deg = (int)lond;
     min = (lond - (double)deg) * 60.0 * 100.0;
-    sprintf( msg_B, "B%c %03d %04.0f\r\n", dir, deg, min);
+    snprintf( msg_B, 32, "B%c %03d %04.0f\r\n", dir, deg, min);
 
     // create msg_C
     float magdeg = fgGetDouble( "/environment/magnetic-variation-deg" );
@@ -81,14 +81,14 @@ bool FGAV400::gen_message() {
     double gnd_trk_mag = gnd_trk_true - magdeg;
     if ( gnd_trk_mag < 0.0 ) { gnd_trk_mag += 360.0; }
     if ( gnd_trk_mag >= 360.0 ) { gnd_trk_mag -= 360.0; }
-    sprintf( msg_C, "C%03.0f\r\n", gnd_trk_mag);
+    snprintf( msg_C, 32, "C%03.0f\r\n", gnd_trk_mag);
 
     // create msg_D
     double speed_kt = sqrt( vn*vn + ve*ve ) * SG_FPS_TO_KT;
     if ( speed_kt > 999.0 ) {
         speed_kt = 999.0;
     }
-    sprintf( msg_D, "D%03.0f\r\n", speed_kt);
+    snprintf( msg_D, 32, "D%03.0f\r\n", speed_kt);
 
     // create msg_E (not implemented)
     // create msg_G (not implemented)
@@ -103,17 +103,17 @@ bool FGAV400::gen_message() {
     } else {
         dir = 'E';
     }
-    sprintf( msg_Q, "Q%c%03.0f\r\n", dir, magdeg * 10.0 );
+    snprintf( msg_Q, 32, "Q%c%03.0f\r\n", dir, magdeg * 10.0 );
 
     // create msg_S (not implemented)
 
     // create msg_T
-    sprintf( msg_T, "T---------\r\n" );
+    snprintf( msg_T, 32, "T---------\r\n" );
 
     // create msg_l (not implemented)
 
     // sentence type 2
-    sprintf( msg_type2, "w01%c\r\n", (char)65 );
+    snprintf( msg_type2, 256, "w01%c\r\n", (char)65 );
 
     // assemble message
     std::string sentence;

@@ -56,12 +56,12 @@ bool FGAV400WSimA::gen_message() {
 
     // create msg_h
     double obs = fgGetDouble( "/instrumentation/nav[0]/radials/selected-deg" );
-    sprintf( msg_h, "h%04d\r\n", (int)(obs*10) );
+    snprintf( msg_h, 32, "h%04d\r\n", (int)(obs*10) );
 
     // create msg_i
     double fuel = fgGetDouble( "/consumables/fuel/total-fuel-gals" );
     if ( fuel > 999.9 ) { fuel = 999.9; }
-    sprintf( msg_i, "i%04.0f\r\n", fuel*10.0 );
+    snprintf( msg_i, 32, "i%04.0f\r\n", fuel*10.0 );
 
     // create msg_j
     double gph = fgGetDouble( "/engines/engine[0]/fuel-flow-gph" );
@@ -69,10 +69,10 @@ bool FGAV400WSimA::gen_message() {
     gph += fgGetDouble( "/engines/engine[2]/fuel-flow-gph" );
     gph += fgGetDouble( "/engines/engine[3]/fuel-flow-gph" );
     if ( gph > 999.9 ) { gph = 999.9; }
-    sprintf( msg_j, "j%04.0f\r\n", gph*10.0 );
+    snprintf( msg_j, 32, "j%04.0f\r\n", gph*10.0 );
 
     // create msg_k
-    sprintf( msg_k, "k%04d%02d%02d%02d%02d%02d\r\n",
+    snprintf( msg_k, 32, "k%04d%02d%02d%02d%02d%02d\r\n",
              fgGetInt( "/sim/time/utc/year"),
              fgGetInt( "/sim/time/utc/month"),
              fgGetInt( "/sim/time/utc/day"),
@@ -83,7 +83,7 @@ bool FGAV400WSimA::gen_message() {
     // create msg_l
     alt = fgGetDouble( "/instrumentation/pressure-alt-ft" );
     if ( alt > 99999.0 ) { alt = 99999.0; }
-    sprintf( msg_l, "l%05.0f\r\n", alt );
+    snprintf( msg_l, 32, "l%05.0f\r\n", alt );
 
     // sentence type 2
     //sprintf( msg_type2, "w01%c\r\n", (char)65 );
@@ -651,7 +651,7 @@ std::string FGAV400WSimB::asciitize_message( std::string message ) {
         }
         else {
             char tempbuf[20];
-            sprintf( tempbuf, "\\x%02X", uc );
+            snprintf( tempbuf, 20, "\\x%02X", uc );
             asciimsg += tempbuf;
         }
     }

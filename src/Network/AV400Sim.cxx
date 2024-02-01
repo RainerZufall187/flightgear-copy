@@ -59,7 +59,7 @@ bool FGAV400Sim::gen_message() {
     }
     deg = (int)latd;
     min = (latd - (double)deg) * 60.0 * 100.0;
-    sprintf( msg_a, "a%c %03d %04.0f\r\n", dir, deg, min);
+    snprintf( msg_a, 32, "a%c %03d %04.0f\r\n", dir, deg, min);
 
     // create msg_b
     double lond = fdm->get_Longitude() * SGD_RADIANS_TO_DEGREES;
@@ -71,12 +71,12 @@ bool FGAV400Sim::gen_message() {
     }
     deg = (int)lond;
     min = (lond - (double)deg) * 60.0 * 100.0;
-    sprintf( msg_b, "b%c %03d %04.0f\r\n", dir, deg, min);
+    snprintf( msg_b, 32, "b%c %03d %04.0f\r\n", dir, deg, min);
 
     // create msg_c
     double alt = fdm->get_Altitude();
     if ( alt > 99999.0 ) { alt = 99999.0; }
-    sprintf( msg_c, "c%05.0f\r\n", alt );
+    snprintf( msg_c, 32, "c%05.0f\r\n", alt );
 
     // create msg_d
     double ve_kts = fgGetDouble( "/velocities/speed-east-fps" ) * SG_FPS_TO_KT;
@@ -87,7 +87,7 @@ bool FGAV400Sim::gen_message() {
 	dir = 'E';
     }
     if ( ve_kts > 999.0 ) { ve_kts = 999.0; }
-    sprintf( msg_d, "d%c%03.0f\r\n", dir, ve_kts );
+    snprintf( msg_d, 32, "d%c%03.0f\r\n", dir, ve_kts );
 
     // create msg_e
     double vn_kts = fgGetDouble( "/velocities/speed-north-fps" ) * SG_FPS_TO_KT;
@@ -98,7 +98,7 @@ bool FGAV400Sim::gen_message() {
 	dir = 'N';
     }
     if ( vn_kts > 999.0 ) { vn_kts = 999.0; }
-    sprintf( msg_e, "e%c%03.0f\r\n", dir, vn_kts );
+    snprintf( msg_e, 32, "e%c%03.0f\r\n", dir, vn_kts );
 
     // create msg_f
     double climb_fpm = fgGetDouble( "/velocities/vertical-speed-fps" ) * 60;
@@ -109,7 +109,7 @@ bool FGAV400Sim::gen_message() {
 	dir = 'U';
     }
     if ( climb_fpm > 9999.0 ) { climb_fpm = 9999.0; }
-    sprintf( msg_f, "f%c%04.0f\r\n", dir, climb_fpm );
+    snprintf( msg_f, 32, "f%c%04.0f\r\n", dir, climb_fpm );
 
     // create msg_h
     double obs = fgGetDouble( "/instrumentation/nav[0]/radials/selected-deg" );
@@ -126,10 +126,10 @@ bool FGAV400Sim::gen_message() {
     gph += fgGetDouble( "/engines/engine[2]/fuel-flow-gph" );
     gph += fgGetDouble( "/engines/engine[3]/fuel-flow-gph" );
     if ( gph > 999.9 ) { gph = 999.9; }
-    sprintf( msg_j, "j%04.0f\r\n", gph*10.0 );
+    snprintf( msg_j, 32, "j%04.0f\r\n", gph*10.0 );
 
     // create msg_k
-    sprintf( msg_k, "k%04d%02d%02d%02d%02d%02d\r\n",
+    snprintf( msg_k, 32, "k%04d%02d%02d%02d%02d%02d\r\n",
 	     fgGetInt( "/sim/time/utc/year"),
 	     fgGetInt( "/sim/time/utc/month"),
 	     fgGetInt( "/sim/time/utc/day"),
@@ -140,13 +140,13 @@ bool FGAV400Sim::gen_message() {
     // create msg_l
     alt = fgGetDouble( "/instrumentation/pressure-alt-ft" );
     if ( alt > 99999.0 ) { alt = 99999.0; }
-    sprintf( msg_l, "l%05.0f\r\n", alt );
+    snprintf( msg_l, 32, "l%05.0f\r\n", alt );
 
     // create msg_r
-    sprintf( msg_r, "rA\r\n" );
+    snprintf( msg_r, 32, "rA\r\n" );
 
     // sentence type 2
-    sprintf( msg_type2, "w01%c\r\n", (char)65 );
+    snprintf( msg_type2, 256, "w01%c\r\n", (char)65 );
 
     // assemble message
     std::string sentence;
