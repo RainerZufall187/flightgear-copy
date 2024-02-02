@@ -91,6 +91,18 @@ function (_apply_target_includes dest target)
 
         target_include_directories(${dest} PUBLIC ${i})
     endforeach()
+
+    # retrieve the list of system includes from the target
+    get_target_property(includes ${target} INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+
+    foreach(i ${includes})
+        # skip any invalid includes
+        if (NOT i)
+            return()
+        endif()
+
+        target_include_directories(${dest} SYSTEM PUBLIC ${i})
+    endforeach()
 endfunction()
 
 function (_apply_all_target_includes dest)
