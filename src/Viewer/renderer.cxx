@@ -1169,7 +1169,9 @@ FGRenderer::removeCamera(osg::Camera* camera)
     if (should_restart_threading) {
         getViewerBase()->stopThreading();
     }
-    getViewerBase()->stopThreading();
+    // Remove all children before removing the slave to prevent the graphics
+    // window from automatically cleaning up all associated OpenGL objects.
+    camera->removeChildren(0, camera->getNumChildren());
     if (composite_viewer) {
         unsigned int index = composite_viewer->getView(0)
             ->findSlaveIndexForCamera(camera);
