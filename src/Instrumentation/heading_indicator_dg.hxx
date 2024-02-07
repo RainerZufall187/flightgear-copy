@@ -82,10 +82,10 @@ private:
 
     std::string _powerSupplyPath;
     std::string _suctionPath;
-    bool _vacuumDriven;
+    bool _vacuumDriven = false;
 
     SGPropertyNode_ptr _limits_node;
-    double _minVacuum;
+    double _minVacuum = 4.0; // inHg
     SGPropertyNode_ptr _minVacuum_node;
 
     double _gyro_lag, _gyro_spin_up, _gyro_spin_down;

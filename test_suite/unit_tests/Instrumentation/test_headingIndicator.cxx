@@ -1,0 +1,165 @@
+/*
+ * SPDX-FileCopyrightText: (C) 2024 James Turner <james@flightgear.org>
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+
+#include "test_headingIndicator.hxx"
+
+#include <cstring>
+#include <memory>
+
+#include "test_suite/FGTestApi/NavDataCache.hxx"
+#include "test_suite/FGTestApi/testGlobals.hxx"
+
+#include <Airports/airport.hxx>
+#include <Navaids/NavDataCache.hxx>
+
+#include <Instrumentation/heading_indicator_dg.hxx>
+#include <Main/fg_props.hxx>
+#include <Main/locale.hxx>
+
+// Set up function for each test.
+void HeadingIndicatorTests::setUp()
+{
+    FGTestApi::setUp::initTestGlobals("heading-indicator-dg");
+    FGTestApi::setUp::initNavDataCache();
+
+    // otherwise ATCSPeech will call locale functions and assert
+    globals->get_locale()->selectLanguage({});
+}
+
+
+// Clean up after each test.
+void HeadingIndicatorTests::tearDown()
+{
+    FGTestApi::tearDown::shutdownTestGlobals();
+}
+
+
+// std::string NavRadioTests::formatFrequency(double f)
+// {
+//     char buf[16];
+//     ::snprintf(buf, 16, "%3.2f", f);
+//     return buf;
+// }
+
+SGSubsystemRef HeadingIndicatorTests::setupInstrument(const std::string& name, int index)
+{
+    SGPropertyNode_ptr configNode(new SGPropertyNode);
+    configNode->setStringValue("name", name);
+    configNode->setIntValue("number", index);
+    configNode->setBoolValue("new-default-power-path", true);
+
+    auto r = new HeadingIndicatorDG(configNode);
+
+    r->bind();
+    r->init();
+
+    globals->get_subsystem_mgr()->add("heading-indicator-dg", r);
+
+    auto elecOuts = fgGetNode("/systems/electrical/outputs/", true);
+    elecOuts->getChild("heading-indicator-dg", index, true)->setDoubleValue(12.0);
+
+    fgSetDouble("/accelerations/pilot-g", 1.0);
+
+    return r;
+}
+
+void HeadingIndicatorTests::testBasic()
+{
+    auto r = setupInstrument("hi", 2);
+
+    FGAirportRef apt = FGAirport::getByIdent("EDDM");
+    FGTestApi::setPositionAndStabilise(apt->geod());
+
+    SGPropertyNode_ptr n = globals->get_props()->getNode("instrumentation/hi[2]");
+
+    fgSetDouble("/orientation/heading-deg", 77.0);
+    FGTestApi::runForTime(6.0);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(1.0, n->getDoubleValue("spin"), 1e-2);
+
+    n->setDoubleValue("offset-deg", 2.0);
+    r->update(0.01);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(79.0, n->getDoubleValue("indicated-heading-deg"), 0.1);
+}
+
+void HeadingIndicatorTests::testTumble()
+{
+    auto r = setupInstrument("hi", 2);
+    SGPropertyNode_ptr n = globals->get_props()->getNode("instrumentation/hi[2]");
+
+    FGAirportRef apt = FGAirport::getByIdent("EDDM");
+    FGTestApi::setPositionAndStabilise(apt->geod());
+
+    // spin-up
+    FGTestApi::runForTime(6.0);
+    CPPUNIT_ASSERT(!n->getBoolValue("is-caged"));
+
+    // not tumbled
+    CPPUNIT_ASSERT(!n->getBoolValue("tumble-flag"));
+    fgSetDouble("/accelerations/pilot-g", 1.4);
+    r->update(0.1);
+    CPPUNIT_ASSERT(!n->getBoolValue("tumble-flag"));
+
+    fgSetDouble("/accelerations/pilot-g", 2.5);
+    r->update(0.1);
+    CPPUNIT_ASSERT(n->getBoolValue("tumble-flag"));
+
+    // back to normal Gs, should stay tumbled
+    fgSetDouble("/accelerations/pilot-g", 1.0);
+    FGTestApi::runForTime(3.0);
+    CPPUNIT_ASSERT(n->getBoolValue("tumble-flag"));
+}
+
+
+void HeadingIndicatorTests::testLatitudeNut()
+{
+    auto r = setupInstrument("hi", 2);
+
+    FGAirportRef apt = FGAirport::getByIdent("EDDM");
+    FGTestApi::setPositionAndStabilise(apt->geod());
+
+    SGPropertyNode_ptr n = globals->get_props()->getNode("instrumentation/hi[2]");
+    fgSetDouble("/orientation/heading-deg", 39.0);
+    FGTestApi::runForTime(6.0);
+
+    r->update(0.1);
+    n->setDoubleValue("offset-deg", 0.0); // remove spin-up offset
+                                          // check wander
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(-10.6, n->getDoubleValue("drift-per-hour-deg"), 0.1);
+    n->setDoubleValue("latitude-nut-setting", apt->latitude());
+
+    // set nut, should negate the drift
+    FGTestApi::runForTime(1.0);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, n->getDoubleValue("drift-per-hour-deg"), 0.1);
+}
+
+void HeadingIndicatorTests::testVacuumGyro()
+{
+    SGPropertyNode_ptr configNode(new SGPropertyNode);
+    configNode->setStringValue("name", "hi-dg");
+    configNode->setIntValue("number", 0);
+    configNode->setStringValue("suction", "/test/suction");
+    configNode->setDoubleValue("minimum-vacuum", 4.0);
+    auto r = new HeadingIndicatorDG(configNode);
+
+    r->bind();
+    r->init();
+
+    globals->get_subsystem_mgr()->add("heading-indicator-dg", r);
+    SGPropertyNode_ptr n = globals->get_props()->getNode("instrumentation/hi-dg[0]");
+
+    fgSetDouble("/test/suction", 3.0);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, n->getDoubleValue("spin"), 0.1);
+
+    fgSetDouble("/test/suction", 6.0);
+    FGTestApi::runForTime(2.0);
+
+    // should still be spinning up
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(0.75, n->getDoubleValue("spin"), 0.1);
+
+    FGTestApi::runForTime(6.0);
+
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(1.0, n->getDoubleValue("spin"), 0.1);
+}

@@ -45,9 +45,9 @@ public:
         if (m_priorityMatch && p != m_priority) return;
         if (!shouldLog(c, p)) return;
         if (m_priorityMatch)
-            m_stream << simgear::LogCallback::debugClassToString(c) << ":" << file << ":" << line << ": " << message << std::endl;
+            m_stream << debugClassToString(c) << ":" << file << ":" << line << ": " << message << std::endl;
         else
-            m_stream << simgear::LogCallback::debugClassToString(c) << ":" << (int) p << ":" << file << ":" << line << ": " << message << std::endl;
+            m_stream << debugClassToString(c) << ":" << (int)p << ":" << file << ":" << line << ": " << message << std::endl;
     }
 
 private:

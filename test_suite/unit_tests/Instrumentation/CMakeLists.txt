@@ -8,6 +8,7 @@ set(TESTSUITE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_dme.cxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_commRadio.cxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_transponder.cxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_headingIndicator.cxx
     PARENT_SCOPE
 )
 
@@ -20,5 +21,6 @@ set(TESTSUITE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/test_dme.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_commRadio.hxx
     ${CMAKE_CURRENT_SOURCE_DIR}/test_transponder.hxx
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_headingIndicator.hxx
     PARENT_SCOPE
 )

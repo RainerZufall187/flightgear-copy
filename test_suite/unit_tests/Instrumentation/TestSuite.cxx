@@ -20,6 +20,7 @@
 #include "test_commRadio.hxx"
 #include "test_dme.hxx"
 #include "test_gps.hxx"
+#include "test_headingIndicator.hxx"
 #include "test_hold_controller.hxx"
 #include "test_navRadio.hxx"
 #include "test_rnav_procedures.hxx"
@@ -33,3 +34,4 @@ CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(RNAVProcedureTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(DMEReceiverTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(CommRadioTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(TransponderTests, "Unit tests");
+CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(HeadingIndicatorTests, "Unit tests");

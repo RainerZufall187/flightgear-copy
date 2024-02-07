@@ -27,8 +27,8 @@ HeadingIndicatorDG::HeadingIndicatorDG(SGPropertyNode* node) : _last_heading_deg
                                                                _last_indicated_heading_dg(0),
                                                                _gyro_lag(0)
 {
-    if( !node->getBoolValue("new-default-power-path", 0) ){
-       setDefaultPowerSupplyPath("/systems/electrical/outputs/DG");
+    if (!node->getBoolValue("new-default-power-path", false)) {
+        setDefaultPowerSupplyPath("/systems/electrical/outputs/DG");
     }
     if (node->hasChild("suction")) {
         // If vacuum driven, reconfigure default abstract instrument implementation
@@ -37,7 +37,7 @@ HeadingIndicatorDG::HeadingIndicatorDG(SGPropertyNode* node) : _last_heading_deg
         SGPropertyNode_ptr _cfg_node = node->getChild("power-supply", 0, true);
         _cfg_node->setStringValue(_suctionPath);
 
-        _minVacuum = node->getDoubleValue("minimum-vacuum", 4.0);
+        _minVacuum = node->getDoubleValue("minimum-vacuum", _minVacuum);
     }
 
     SGPropertyNode* gyro_cfg = node->getChild("gyro", 0, true);
