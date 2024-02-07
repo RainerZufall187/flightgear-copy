@@ -82,6 +82,17 @@ void HeadingIndicatorTests::testBasic()
     n->setDoubleValue("offset-deg", 2.0);
     r->update(0.01);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(79.0, n->getDoubleValue("indicated-heading-deg"), 0.1);
+
+
+    fgSetDouble("/orientation/heading-deg", 358.0);
+    n->setDoubleValue("offset-deg", -2);
+    FGTestApi::runForTime(6.0);
+    
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(356.0, n->getDoubleValue("indicated-heading-deg"), 0.1);
+
+    fgSetDouble("/orientation/heading-deg", 5.0);
+    FGTestApi::runForTime(1.0);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, n->getDoubleValue("indicated-heading-deg"), 0.1);
 }
 
 void HeadingIndicatorTests::testTumble()
