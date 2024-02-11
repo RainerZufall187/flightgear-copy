@@ -281,7 +281,9 @@ HeadingIndicatorDG::update (double dt)
     error = SGMiscd::normalizePeriodic(-180.0, 180.0, error);
     _error_node->setDoubleValue(error);
 
-    heading = flightgear::lowPassPeriodicDegreesPositive(_last_indicated_heading_dg, heading, dt * 100 * factor);
+    heading = flightgear::lowPassPeriodicDegreesSigned(_last_indicated_heading_dg, heading, dt * 100 * factor);
+    _last_indicated_heading_dg = heading;
+    
     heading += offset + align + error;
     heading = SGMiscd::normalizePeriodic(0.0,360.0,heading);
 

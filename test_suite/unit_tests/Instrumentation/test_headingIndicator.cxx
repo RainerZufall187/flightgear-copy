@@ -69,11 +69,11 @@ SGSubsystemRef HeadingIndicatorTests::setupInstrument(const std::string& name, i
 void HeadingIndicatorTests::testBasic()
 {
     auto r = setupInstrument("hi", 2);
-
     FGAirportRef apt = FGAirport::getByIdent("EDDM");
     FGTestApi::setPositionAndStabilise(apt->geod());
 
     SGPropertyNode_ptr n = globals->get_props()->getNode("instrumentation/hi[2]");
+    auto indicatedHeadingNode = n->getChild("indicated-heading-deg");
 
     fgSetDouble("/orientation/heading-deg", 77.0);
     FGTestApi::runForTime(6.0);
@@ -81,18 +81,54 @@ void HeadingIndicatorTests::testBasic()
 
     n->setDoubleValue("offset-deg", 2.0);
     r->update(0.01);
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(79.0, n->getDoubleValue("indicated-heading-deg"), 0.1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(79.0, indicatedHeadingNode->getDoubleValue(), 0.1);
 
-
+// setup a wrap condition around 360.0 / 0.0
     fgSetDouble("/orientation/heading-deg", 358.0);
     n->setDoubleValue("offset-deg", -2);
     FGTestApi::runForTime(6.0);
     
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(356.0, n->getDoubleValue("indicated-heading-deg"), 0.1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(356.0, indicatedHeadingNode->getDoubleValue(), 0.1);
 
     fgSetDouble("/orientation/heading-deg", 5.0);
+    for (int i=0; i<10; ++i) {
+        r->update(0.01);
+        auto indicated = n->getDoubleValue("indicated-heading-deg");
+        CPPUNIT_ASSERT((indicated >= 356) || (indicated < 3.0));
+    }
+
     FGTestApi::runForTime(1.0);
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, n->getDoubleValue("indicated-heading-deg"), 0.1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+// setup a wrap condition around 180.0
+    fgSetDouble("/orientation/heading-deg", 182.0);
+    n->setDoubleValue("offset-deg", 2);
+    FGTestApi::runForTime(6.0);
+    
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(184.0, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+    fgSetDouble("/orientation/heading-deg", 175.0);
+    for (int i=0; i<10; ++i) {
+        r->update(0.01);
+        auto indicated = indicatedHeadingNode->getDoubleValue();
+        CPPUNIT_ASSERT((indicated >= 176.0) && (indicated < 184.0));
+    }
+
+    FGTestApi::runForTime(1.0);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(177, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+// test alignment adjustment
+    n->setDoubleValue("align-deg", 42.0);
+    r->update(0.01);
+
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(219, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+// test error adjustment
+    n->setDoubleValue("align-deg", 10.0);
+    n->setDoubleValue("error-deg", 13.0);
+    r->update(0.01);
+
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(200.0, indicatedHeadingNode->getDoubleValue(), 0.1);
 }
 
 void HeadingIndicatorTests::testTumble()
