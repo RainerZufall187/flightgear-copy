@@ -325,18 +325,7 @@ void fgOSResetProperties()
     fgTie("/sim/rendering/osg-displaysettings/depth-buffer", displaySettings, &DisplaySettings::getDepthBuffer, &DisplaySettings::setDepthBuffer);
     fgTie("/sim/rendering/osg-displaysettings/rgb", displaySettings, &DisplaySettings::getRGB, &DisplaySettings::setRGB);
 
-    // For the moment we fix the number of database threads as 1. Once
-    // we are confident that mltiple database threads is working, we will
-    // replace the environmental variable check with the below line.
-    // fgTie("/sim/rendering/database-pager/threads", &getNumDatabaseThreads, &setNumDatabaseThreads);
-    unsigned int numDBPagerThreads = 1;
-    if (std::getenv("FG_OVERRIDE_PAGER_THREADS")) {
-        numDBPagerThreads = stoi(std::getenv("FG_OVERRIDE_PAGER_THREADS"));
-        SG_LOG(SG_ALL, SG_ALERT, "Over-riding number of database threads to " << numDBPagerThreads << ".  Expect turbulence and possible crashes if using more than one thread.");
-    }
-
-    DisplaySettings::instance()->setNumOfDatabaseThreadsHint(max(numDBPagerThreads, 1u));
-    DisplaySettings::instance()->setNumOfHttpDatabaseThreadsHint(0);
+    fgTie("/sim/rendering/database-pager/threads", &getNumDatabaseThreads, &setNumDatabaseThreads);
 
 #ifdef ENABLE_OSGXR
     fgSetBool("/sim/vr/built", true);
