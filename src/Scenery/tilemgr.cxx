@@ -37,6 +37,7 @@
 #include <simgear/scene/model/modellib.hxx>
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
 #include <simgear/scene/tgdb/VPBTechnique.hxx>
+#include <simgear/scene/tgdb/VPBLineFeatureRenderer.hxx>
 #include <simgear/scene/tsync/terrasync.hxx>
 #include <simgear/misc/strutils.hxx>
 #include <simgear/scene/material/matlib.hxx>
@@ -488,7 +489,7 @@ void FGTileMgr::update_queues(bool& isDownloadingScenery)
 
             if (_use_vpb) {
                 // Clear out any VPB data - e.g. roads
-                simgear::VPBTechnique::unloadFeatures(old->get_tile_bucket());
+                simgear::VPBLineFeatureRenderer::unloadFeatures(old->get_tile_bucket());
             }
 
             osg::ref_ptr<osg::Object> subgraph = old->getNode();
