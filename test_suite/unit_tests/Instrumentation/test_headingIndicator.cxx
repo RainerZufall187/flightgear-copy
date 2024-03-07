@@ -117,18 +117,56 @@ void HeadingIndicatorTests::testBasic()
     FGTestApi::runForTime(1.0);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(177, indicatedHeadingNode->getDoubleValue(), 0.1);
 
-// test alignment adjustment
+    // one more wrap condition
+    fgSetDouble("/orientation/heading-deg", 270.0);
+    n->setDoubleValue("offset-deg", 87);
+    FGTestApi::runForTime(6.0); // stabilize
+
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(357.0, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+    fgSetDouble("/orientation/heading-deg", 250.0);
+    for (int i = 0; i < 10; ++i) {
+        r->update(0.01);
+        auto indicated = indicatedHeadingNode->getDoubleValue();
+
+        CPPUNIT_ASSERT((indicated < 357.0) && (indicated > 336.0));
+    }
+
+    FGTestApi::runForTime(1.0);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(337.0, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+    // one more wrap condition
+    fgSetDouble("/orientation/heading-deg", 270.0);
+    n->setDoubleValue("offset-deg", 97);
+    FGTestApi::runForTime(2.0); // stabilize
+
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(7.0, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+    fgSetDouble("/orientation/heading-deg", 250.0);
+    for (int i = 0; i < 10; ++i) {
+        r->update(0.01);
+        auto indicated = indicatedHeadingNode->getDoubleValue();
+        std::cerr << "Indicated:" << indicated << std::endl;
+        CPPUNIT_ASSERT((indicated < 7.0) || (indicated > 346.0));
+    }
+
+    FGTestApi::runForTime(1.0);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(347.0, indicatedHeadingNode->getDoubleValue(), 0.1);
+
+    // test alignment adjustment
+    fgSetDouble("/orientation/heading-deg", 182.0);
+    n->setDoubleValue("offset-deg", 0.0);
     n->setDoubleValue("align-deg", 42.0);
-    r->update(0.01);
+    FGTestApi::runForTime(1.0);
 
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(219, indicatedHeadingNode->getDoubleValue(), 0.1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(224.0, indicatedHeadingNode->getDoubleValue(), 0.1);
 
-// test error adjustment
+    // test error adjustment
     n->setDoubleValue("align-deg", 10.0);
     n->setDoubleValue("error-deg", 13.0);
     r->update(0.01);
 
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(200.0, indicatedHeadingNode->getDoubleValue(), 0.1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(205.0, indicatedHeadingNode->getDoubleValue(), 0.1);
 }
 
 void HeadingIndicatorTests::testTumble()
