@@ -90,10 +90,24 @@ public:
 
     void initFromNode(SGPropertyNode_ptr config);
 
+    using NasalCallback = std::function<void()>;
+
+    void addCallback(NasalCallback cb)
+    {
+        _callbacks.push_back(cb);
+    }
+
 protected:
     void valueChanged(SGPropertyNode* prop) override;
 
 private:
+    void runCallbacks()
+    {
+        std::for_each(_callbacks.begin(), _callbacks.end(), [](NasalCallback& cb) {
+            cb();
+        });
+    }
+
     std::string _name;
     std::string _label;
     std::string _shortcut;
@@ -106,6 +120,7 @@ private:
         _checkedNode, _labelNode;
     NasalMenuPtr _submenu;
     SGBindingList _bindings;
+    std::vector<NasalCallback> _callbacks;
 };
 
 class NasalMenu : public SGReferenced,
@@ -222,6 +237,9 @@ void NasalMenuItem::valueChanged(SGPropertyNode* n)
     } else if (n->getNameString() == "name") {
         _name = n->getStringValue();
     }
+
+    // allow Nasal to response to changes
+    runCallbacks();
 }
 
 void NasalMenuItem::fire()
@@ -368,6 +386,13 @@ bool FGNasalMenuBar::getHideIfOverlapsWindow() const
     return _d->visibilityMode == VisibilityMode::HideIfOverlapsWindow;
 }
 
+static naRef f_itemAddCallback(NasalMenuItem& item, const nasal::CallContext& ctx)
+{
+    auto cb = ctx.requireArg<NasalMenuItem::NasalCallback>(0);
+    item.addCallback(cb);
+    return naNil();
+}
+
 void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
 {
     using MenuItemGhost = nasal::Ghost<NasalMenuItemPtr>;
@@ -380,7 +405,8 @@ void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
         .member("shortcut", &NasalMenuItem::shortcut)
         .member("submenu", &NasalMenuItem::submenu)
         .member("label", &NasalMenuItem::label)
-        .method("fire", &NasalMenuItem::fire);
+        .method("fire", &NasalMenuItem::fire)
+        .method("addChangedCallback", &f_itemAddCallback);
 
     using MenuGhost = nasal::Ghost<NasalMenuPtr>;
     MenuGhost::init("gui.xml.Menu")
