@@ -394,12 +394,15 @@ void FGEnvironmentMgr::updateClosestAirport()
         fgSetDouble("/sim/airport/nearest-carrier-deck-height", nctn->GetDeckheight());
     } else {
         if (nearestAirport != nullptr) {
-            std::string   path = ViewPropertyEvaluator::getStringValue("(/sim/view[(/sim/current-view/view-number-raw)]/config/root)/sim/tower/");
-            fgSetString(path + "airport-id", nearestAirport->getId());
 
-            fgSetDouble(path + "latitude-deg", nearestTowerPosition.getLatitudeDeg());
-            fgSetDouble(path + "longitude-deg", nearestTowerPosition.getLongitudeDeg());
-            fgSetDouble(path + "altitude-ft", nearestTowerPosition.getElevationFt());
+            if (automaticTowerActive) {
+              std::string   path = ViewPropertyEvaluator::getStringValue("(/sim/view[(/sim/current-view/view-number-raw)]/config/root)/sim/tower/");
+              fgSetString(path + "airport-id", nearestAirport->getId());
+
+              fgSetDouble(path + "latitude-deg", nearestTowerPosition.getLatitudeDeg());
+              fgSetDouble(path + "longitude-deg", nearestTowerPosition.getLongitudeDeg());
+              fgSetDouble(path + "altitude-ft", nearestTowerPosition.getElevationFt());
+            }
         }
         else {
             SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "FGEnvironmentMgr::update: No airport or carrier within 100NM range of current multiplayer aircraft");
