@@ -145,6 +145,7 @@ STGTileEntry::~STGTileEntry ()
 VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWriterOptions> options ) : TileEntry(b)
 {
     tileFileName = "vpb/" + b.gen_vpb_base() + ".osgb";
+    std::string zipFileName = "vpb/" + b.gen_base_path() + ".zip";
 
     bool found = false;
     auto filePathList = options->getDatabasePathList();
@@ -154,6 +155,13 @@ VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWr
             found = true;
             break;
         }
+
+        SGPath archive(path, zipFileName);
+        if (archive.exists()) {
+            found = true;
+            break;
+        }
+
     }
 
     if (found) {
