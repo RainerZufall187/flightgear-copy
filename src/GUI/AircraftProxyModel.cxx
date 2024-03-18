@@ -11,7 +11,7 @@
 AircraftProxyModel::AircraftProxyModel(QObject *pr, QAbstractItemModel * source) :
     QSortFilterProxyModel(pr)
 {
-    m_ratings = {3, 3, 3, 3};
+    m_ratings = {4, 4, 4, 4};
     setSourceModel(source);
     setSortCaseSensitivity(Qt::CaseInsensitive);
     setFilterCaseSensitivity(Qt::CaseInsensitive);
