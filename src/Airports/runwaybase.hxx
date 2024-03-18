@@ -1,33 +1,16 @@
-// runwaybase.hxx -- represent a runway or taxiway
-//
-// Written by James Turner, started December 2000.
-//
-// Copyright (C) 2000  Curtis L. Olson  - http://www.flightgear.org/~curt
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
+/*
+ * SPDX-FileCopyrightText: (C) 2000 Curtis L. Olson - http://www.flightgear.org/~curt
+ * SPDX_FileComment: represent a runway or taxiway
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
-
-#ifndef _FG_RUNWAY_BASE_HXX
-#define _FG_RUNWAY_BASE_HXX
+#pragma once
 
 #include <simgear/compiler.h>
 
 #include <simgear/math/sg_geodesy.hxx>
 
+#include <Airports/airports_fwd.hxx>
 #include <Navaids/positioned.hxx>
 
 #include <string>
@@ -39,22 +22,24 @@
 class FGRunwayBase : public FGPositioned
 {    
 public:
-  FGRunwayBase(PositionedID aGuid, Type aTy, const std::string& aIdent,
-            const SGGeod& aGeod,
-            const double heading, const double length,
-            const double width,
-            const int surface_code);
-            
-  /**
+    FGRunwayBase(PositionedID aGuid, Type aTy, const std::string& aIdent,
+                 const SGGeod& aGeod,
+                 const double heading, const double length,
+                 const double width,
+                 const int surface_code,
+                 const PositionedID airportId);
+
+    /**
    * Retrieve a position on the extended centerline. Positive values
    * are in the direction of the runway heading, negative values are in the
    * opposited direction. 0.0 corresponds to the (non-displaced) threshold
    */
-  SGGeod pointOnCenterline(double aOffset) const;
-  SGGeod pointOffCenterline(double aOffset, double lateralOffset) const;
-  
-  double lengthFt() const
-  { return _length * SG_METER_TO_FEET; }
+    SGGeod pointOnCenterline(double aOffset) const;
+    SGGeod pointOffCenterline(double aOffset, double lateralOffset) const;
+
+    double lengthFt() const
+    {
+        return _length * SG_METER_TO_FEET; }
   
   double lengthM() const
   { return _length; }
@@ -88,8 +73,10 @@ public:
    */
   static const char * surfaceName( int surface_code );
   const char * surfaceName() { return surfaceName( _surface_code ); }
-  
-protected:
+
+  FGAirportRef airport() const;
+
+  protected:
     
   double _heading;
   double _length;
@@ -99,18 +86,19 @@ protected:
    * http://www.x-plane.org/home/robinp/Apt810.htm#RwySfcCodes
    */
   int _surface_code;
+
+  PositionedID mAirport;
 };
 
 // for the moment, taxiways are simply a concrete RunwayBase
 class FGTaxiway : public FGRunwayBase
 {
 public:
-  FGTaxiway(PositionedID aGuid,
-            const std::string& aIdent,
-            const SGGeod& aGeod,
-            const double heading, const double length,
-            const double width,
-            const int surface_code);
+    FGTaxiway(PositionedID aGuid,
+              const std::string& aIdent,
+              const SGGeod& aGeod,
+              const double heading, const double length,
+              const double width,
+              const int surface_code,
+              const PositionedID airportId);
 };
-
-#endif // _FG_RUNWAY_BASE_HXX

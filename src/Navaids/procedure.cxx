@@ -24,6 +24,7 @@
 
 #include <simgear/structure/exception.hxx>
 
+#include <Airports/airport.hxx>
 #include <Airports/runways.hxx>
 #include <Navaids/waypoint.hxx>
 
@@ -51,7 +52,9 @@ Approach::Approach(const string& aIdent, ProcedureType ty) :
 {
 
 }
-    
+
+Approach::~Approach() = default;
+
 Approach* Approach::createTempApproach(const std::string& aIdent, FGRunway* aRunway, const WayptVec& aPath)
 {
     Approach* app = new Approach(aIdent, PROCEDURE_APPROACH_RNAV);

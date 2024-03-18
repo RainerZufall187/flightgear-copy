@@ -222,6 +222,13 @@ public:
     FGPositionedRef findCommByFreq(int freqKhz, const SGGeod& pos, FGPositioned::Filter* filt);
 
     /**
+   * Find all on a frequency, sorted by distance from a position
+   * The filter with be used for both type ranging and to validate the result
+   * candidates.
+   */
+    PositionedIDVec findCommsByFreq(int freqKhz, const SGGeod& pos, FGPositioned::Filter* filt);
+
+    /**
    * find all items of a specified type (or range of types) at an airport
    */
     PositionedIDVec airportItemsOfType(PositionedID apt, FGPositioned::Type ty,

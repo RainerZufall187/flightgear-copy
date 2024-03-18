@@ -357,6 +357,8 @@ static const char* runwayGhostGetMember(naContext c, void* g, naRef field, naRef
   else if (!strcmp(fieldName, "length")) *out = naNum(base->lengthM());
   else if (!strcmp(fieldName, "width")) *out = naNum(base->widthM());
   else if (!strcmp(fieldName, "surface")) *out = naNum(base->surface());
+  else if (!strcmp(fieldName, "airport"))
+      *out = ghostForAirport(c, base->airport());
   else if (base->type() == FGRunwayBase::RUNWAY) {
     FGRunway* rwy = (FGRunway*) g;
     if (!strcmp(fieldName, "threshold")) *out = naNum(rwy->displacedThresholdM());
@@ -424,8 +426,16 @@ static const char* navaidGhostGetMember(naContext c, void* g, naRef field, naRef
     }
   } else if (!strcmp(fieldName, "guid")) {
       *out = naNum(nav->guid());
+  } else if (!strcmp(fieldName, "runway")) {
+      *out = ghostForRunway(c, nav->runway());
+  } else if (!strcmp(fieldName, "airport")) {
+      if (nav->runway()) {
+          *out = ghostForAirport(c, nav->runway()->airport());
+      } else {
+          *out = naNil(); // not associated with an airport / runway
+      }
   } else {
-    return 0;
+      return 0;
   }
 
   return "";
@@ -462,6 +472,10 @@ static const char* commGhostGetMember(naContext c, void* g, naRef field, naRef* 
     *out = naNum(comm->latitude());
   else if (!strcmp(fieldName, "lon"))
     *out = naNum(comm->longitude());
+  else if (!strcmp(fieldName, "airport"))
+      *out = ghostForAirport(c, comm->airport());
+  else if (!strcmp(fieldName, "range_nm"))
+      *out = naNum(comm->rangeNm());
   else if (!strcmp(fieldName, "type")) {
     *out = stringToNasal(c, comm->nameForType(comm->type()));
   } else if (!strcmp(fieldName, "name"))
@@ -1480,8 +1494,8 @@ static naRef f_findNavaidsByFrequency(naContext c, naRef me, int argc, naRef* ar
   naRef r = naNewVector(c);
   FGNavList::TypeFilter filter(type);
   auto navs = FGNavList::findAllByFreq(freqMhz, pos, &filter);
-  for (nav_rec_ptr a : navs) {
-    naVec_append(r, ghostForNavaid(c, a.ptr()));
+  for (auto a : navs) {
+      naVec_append(r, ghostForNavaid(c, a.ptr()));
   }
 
   return r;
@@ -1499,11 +1513,10 @@ static naRef f_findCommByFrequency(naContext c, naRef me, int argc, naRef* args)
 
   // initial filter is all comm types
   FGPositioned::TypeFilter filter(FGPositioned::FREQ_GROUND, FGPositioned::FREQ_UNICOM);
-
   double freqMhz = args[argOffset++].num;
   if (argOffset < argc) {
     // allow specifying an explicitly type by name
-    filter = FGPositioned::TypeFilter{FGPositioned::typeFromName(naStr_data(args[argOffset]))};
+    filter = FGPositioned::TypeFilter::fromString(naStr_data(args[argOffset]));
   }
 
   auto ref = NavDataCache::instance()->findCommByFreq(static_cast<int>(freqMhz * 1000), pos, &filter);
@@ -1513,6 +1526,33 @@ static naRef f_findCommByFrequency(naContext c, naRef me, int argc, naRef* args)
 
   auto comm = fgpositioned_cast<flightgear::CommStation>(ref);
   return ghostForComm(c, comm);
+}
+
+static naRef f_findCommsByFrequency(naContext c, naRef me, int argc, naRef* args)
+{
+    int argOffset = 0;
+    SGGeod pos = globals->get_aircraft_position();
+    argOffset += geodFromArgs(args, 0, argc, pos);
+
+    if (!naIsNum(args[argOffset])) {
+        naRuntimeError(c, "f_findCommsByFrequency expectes frequency (in Mhz) as arg %d", argOffset);
+    }
+
+    FGPositioned::TypeFilter filter(FGPositioned::FREQ_GROUND, FGPositioned::FREQ_UNICOM);
+    double freqMhz = args[argOffset++].num;
+    if (argOffset < argc) {
+        // allow specifying an explicitly type by name
+        filter = FGPositioned::TypeFilter::fromString(naStr_data(args[argOffset]));
+    }
+
+    naRef r = naNewVector(c);
+    auto stations = NavDataCache::instance()->findCommsByFreq(static_cast<int>(freqMhz * 1000), pos, &filter);
+    for (auto id : stations) {
+        auto sta = FGPositioned::loadById<CommStation>(id);
+        naVec_append(r, ghostForComm(c, sta.ptr()));
+    }
+
+    return r;
 }
 
 static naRef f_findNavaidsByIdent(naContext c, naRef me, int argc, naRef* args)
@@ -1845,6 +1885,7 @@ static struct {
     {"findNavaidByFrequencyMHz", f_findNavaidByFrequency},
     {"findNavaidsByFrequencyMHz", f_findNavaidsByFrequency},
     {"findCommByFrequencyMHz", f_findCommByFrequency},
+    {"findCommsByFrequencyMHz", f_findCommsByFrequency},
     {"findNavaidsByID", f_findNavaidsByIdent},
     {"findFixesByID", f_findFixesByIdent},
     {"findByIdent", f_findByIdent},

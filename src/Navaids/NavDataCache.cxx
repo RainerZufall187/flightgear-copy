@@ -749,7 +749,7 @@ public:
 
     if (ty == FGPositioned::TAXIWAY) {
       reset(loadRunwayStmt);
-      return new FGTaxiway(rowId, id, pos, heading, lengthM, widthM, surface);
+      return new FGTaxiway(rowId, id, pos, heading, lengthM, widthM, surface, apt);
     } else if (ty == FGPositioned::HELIPAD) {
         reset(loadRunwayStmt);
         return new FGHelipad(rowId, apt, id, pos, heading, lengthM, widthM, surface);
@@ -2522,33 +2522,49 @@ char** NavDataCache::searchAirportNamesAndIdents(const std::string& searchInput)
 FGPositionedRef
 NavDataCache::findCommByFreq(int freqKhz, const SGGeod& aPos, FGPositioned::Filter* aFilter)
 {
-  sqlite3_bind_int(d->findCommByFreq, 1, freqKhz);
-  if (aFilter) {
-    sqlite3_bind_int(d->findCommByFreq, 2, aFilter->minType());
-    sqlite3_bind_int(d->findCommByFreq, 3, aFilter->maxType());
-  } else { // full type range
-    sqlite3_bind_int(d->findCommByFreq, 2, FGPositioned::FREQ_GROUND);
-    sqlite3_bind_int(d->findCommByFreq, 3, FGPositioned::FREQ_UNICOM);
-  }
-
-  SGVec3d cartPos(SGVec3d::fromGeod(aPos));
-  sqlite3_bind_double(d->findCommByFreq, 4, cartPos.x());
-  sqlite3_bind_double(d->findCommByFreq, 5, cartPos.y());
-  sqlite3_bind_double(d->findCommByFreq, 6, cartPos.z());
-  FGPositionedRef result;
-
-  while (d->execSelect(d->findCommByFreq)) {
-    FGPositionedRef p = loadById(sqlite3_column_int64(d->findCommByFreq, 0));
-    if (aFilter && !aFilter->pass(p)) {
-      continue;
+    auto matches = findCommsByFreq(freqKhz, aPos, aFilter);
+    if (matches.empty()) {
+        return {};
     }
 
-    result = p;
-    break;
-  }
+    return loadById(matches.front());
+}
 
-  d->reset(d->findCommByFreq);
-  return result;
+PositionedIDVec
+NavDataCache::findCommsByFreq(int freqKhz, const SGGeod& aPos, FGPositioned::Filter* aFilter)
+{
+    PositionedIDVec matches;
+
+    sqlite3_bind_int(d->findCommByFreq, 1, freqKhz);
+    if (aFilter) {
+        sqlite3_bind_int(d->findCommByFreq, 2, aFilter->minType());
+        sqlite3_bind_int(d->findCommByFreq, 3, aFilter->maxType());
+    } else { // full type range
+        sqlite3_bind_int(d->findCommByFreq, 2, FGPositioned::FREQ_GROUND);
+        sqlite3_bind_int(d->findCommByFreq, 3, FGPositioned::FREQ_UNICOM);
+    }
+
+    SGVec3d cartPos(SGVec3d::fromGeod(aPos));
+    sqlite3_bind_double(d->findCommByFreq, 4, cartPos.x());
+    sqlite3_bind_double(d->findCommByFreq, 5, cartPos.y());
+    sqlite3_bind_double(d->findCommByFreq, 6, cartPos.z());
+    FGPositionedRef result;
+
+    while (d->execSelect(d->findCommByFreq)) {
+        const auto id = sqlite3_column_int64(d->findCommByFreq, 0);
+        if (aFilter) {
+            FGPositionedRef p = loadById(id);
+            if (aFilter && !aFilter->pass(p)) {
+                continue;
+            }
+        }
+
+
+        matches.push_back(id);
+    }
+
+    d->reset(d->findCommByFreq);
+    return matches;
 }
 
 PositionedIDVec

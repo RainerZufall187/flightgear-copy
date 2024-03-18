@@ -1,25 +1,8 @@
-// runways.cxx -- a simple class to manage airport runway info
-//
-// Written by Curtis Olson, started August 2000.
-//
-// Copyright (C) 2000  Curtis L. Olson  - http://www.flightgear.org/~curt
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
-
+/*
+ * SPDX-FileCopyrightText: (C) 2000 Curtis L. Olson - http://www.flightgear.org/~curt
+ * SPDX_FileComment: a simple class to manage airport runway info
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include <config.h>
 
@@ -47,8 +30,7 @@ FGRunway::FGRunway(PositionedID aGuid,
                    const double displ_thresh,
                    const double stopway,
                    const int surface_code) : FGRunwayBase(aGuid, RUNWAY, aIdent, aGeod,
-                                                          heading, length, width, surface_code),
-                                             _airport(aAirport),
+                                                          heading, length, width, surface_code, aAirport),
                                              _reciprocal(0),
                                              _displ_thresh(displ_thresh),
                                              _stopway(stopway),
@@ -128,11 +110,6 @@ void FGRunway::setReciprocalRunway(PositionedID other)
 {
     assert(_reciprocal == 0);
     _reciprocal = other;
-}
-
-FGAirport* FGRunway::airport() const
-{
-    return loadById<FGAirport>(_airport);
 }
 
 FGRunway* FGRunway::reciprocalRunway() const
@@ -219,6 +196,6 @@ FGHelipad::FGHelipad(PositionedID aGuid,
                      const double heading, const double length,
                      const double width,
                      const int surface_code) : FGRunwayBase(aGuid, HELIPAD, aIdent, aGeod,
-                                                            heading, length, width, surface_code)
+                                                            heading, length, width, surface_code, aAirport)
 {
 }

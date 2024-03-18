@@ -114,10 +114,11 @@ typedef SGSharedPtr<Transition> TransitionRef;
 class Approach : public Procedure
 {
 public:
-  virtual ~Approach() { ; }
-    
-  FGRunwayRef runway() 
-  { return _runway; }
+    virtual ~Approach();
+
+    FGRunwayRef runway()
+    {
+        return _runway; }
 
   static bool isApproach(ProcedureType ty);
   
