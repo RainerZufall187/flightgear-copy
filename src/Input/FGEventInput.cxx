@@ -271,6 +271,8 @@ void FGInputDevice::Configure( SGPropertyNode_ptr aDeviceNode )
 {
   deviceNode = aDeviceNode;
 
+  SG_LOG(SG_INPUT, SG_DEBUG, "FGInputDevice::Configure");
+
   // use _uniqueName here so each loaded device gets its own Nasal module
   nasalModule = string("__event:") + _uniqueName;
 
@@ -302,7 +304,6 @@ void FGInputDevice::Configure( SGPropertyNode_ptr aDeviceNode )
         nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode );
     }
   }
-
 }
 
 void FGInputDevice::AddHandledEvent( FGInputEvent_ptr event )
@@ -374,9 +375,10 @@ FGEventInput::~FGEventInput()
 
 void FGEventInput::shutdown()
 {
-    for (auto it : input_devices) {
-        it.second->Close();
-        delete it.second;
+    SG_LOG(SG_INPUT, SG_DEBUG, "FGEventInput::shutdown()");
+    auto tmp = input_devices;
+    for (auto it : tmp) {
+      RemoveDevice(it.first);
     }
     input_devices.clear();
 }
@@ -446,7 +448,7 @@ unsigned FGEventInput::AddDevice( FGInputDevice * inputDevice )
   // otherwise try the unmodifed name for the device
   if (configNode == nullptr) {
     if (!configMap.hasConfiguration(deviceName)) {
-      SG_LOG(SG_INPUT, SG_DEBUG, "No configuration found for device " << deviceName);
+      SG_LOG(SG_INPUT, SG_INFO, "No configuration found for device " << deviceName);
       delete inputDevice;
       return INVALID_DEVICE_INDEX;
     }
@@ -491,7 +493,7 @@ unsigned FGEventInput::AddDevice( FGInputDevice * inputDevice )
 
     input_devices[deviceNode->getIndex()] = inputDevice;
 
-    SG_LOG(SG_INPUT, SG_DEBUG, "using InputDevice " << inputDevice->GetUniqueName());
+    SG_LOG(SG_INPUT, SG_INFO, "FGEventInput::AddDevice '" << inputDevice->GetUniqueName() << "' s/n: " << inputDevice->GetSerialNumber() );
     return deviceNode->getIndex();
 }
 
@@ -501,12 +503,13 @@ void FGEventInput::RemoveDevice( unsigned index )
   SGPropertyNode_ptr baseNode = fgGetNode( PROPERTY_ROOT, true );
   SGPropertyNode_ptr deviceNode = NULL;
 
+  SG_LOG(SG_INPUT, SG_DEBUG, "FGEventInput::RemoveDevice(" << index << ") ");
   FGInputDevice *inputDevice = input_devices[index];
   if (inputDevice) {
+    SG_LOG(SG_INPUT, SG_DEBUG, "\tremoving (" << index << ") " << inputDevice->GetUniqueName());
     inputDevice->Close();
     input_devices.erase(index);
     delete inputDevice;
-    
   }
   deviceNode = baseNode->removeChild("device", index);
 }

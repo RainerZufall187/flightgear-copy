@@ -346,7 +346,7 @@ FGHIDDevice::FGHIDDevice(hid_device_info *devInfo, FGHIDEventInput *)
 
     std::wstring manufacturerName, productName;
     productName = devInfo->product_string ? std::wstring(devInfo->product_string)
-                                          : L"unknown HID device";
+                                          : L"unknown HID";
 
     if (devInfo->manufacturer_string) {
         manufacturerName = std::wstring(devInfo->manufacturer_string);
@@ -363,7 +363,7 @@ FGHIDDevice::FGHIDDevice(hid_device_info *devInfo, FGHIDEventInput *)
         SetSerialNumber(simgear::strutils::convertWStringToUtf8(serial));
     }
 
-    SG_LOG(SG_INPUT, SG_DEBUG, "HID device:" << GetName() << " at path " << _hidPath);
+    SG_LOG(SG_INPUT, SG_DEBUG, "Found HID '" << GetName() << "' at path " << _hidPath);
 }
 
 FGHIDDevice::~FGHIDDevice()
@@ -375,6 +375,10 @@ FGHIDDevice::~FGHIDDevice()
 
 void FGHIDDevice::Configure(SGPropertyNode_ptr node)
 {
+    // mark as hid-device
+    if (!node->hasChild("is-hid")) {
+        node->getNode("is-hid", true)->setBoolValue(true);
+    }
     // base class first
     FGInputDevice::Configure(node);
 
@@ -405,17 +409,19 @@ bool FGHIDDevice::Open()
 {
     _device = hid_open_path(_hidPath.c_str());
     if (_device == nullptr) {
-        SG_LOG(SG_INPUT, SG_WARN, GetUniqueName() << ": HID: Failed to open:" << _hidPath);
+        SG_LOG(SG_INPUT, SG_WARN, "HID " << GetUniqueName() << ": Failed to open:" << _hidPath);
         SG_LOG(SG_INPUT, SG_WARN, "\tnote on Linux you may need to adjust permissions of the device using UDev rules.");
         return false;
     }
+
+    SG_LOG(SG_INPUT, SG_INFO, "HID open " << GetUniqueName());
 
 #if !defined(SG_WINDOWS)
     if (_rawXMLDescriptor.empty()) {
         _rawXMLDescriptor.resize(2048);
         int descriptorSize = hid_get_descriptor(_device, _rawXMLDescriptor.data(), _rawXMLDescriptor.size());
         if (descriptorSize <= 0) {
-           SG_LOG(SG_INPUT, SG_WARN, "HID: " << GetUniqueName() << " failed to read HID descriptor");
+           SG_LOG(SG_INPUT, SG_WARN, "HID: failed to read descriptor for " << GetUniqueName());
            return false;
         }
 
@@ -432,7 +438,7 @@ bool FGHIDDevice::Open()
     for (auto& v : handledEvents) {
         auto reportItem = itemWithName(v.first);
         if (!reportItem.second) {
-            SG_LOG(SG_INPUT, SG_WARN, "HID device:" << GetUniqueName() << " has no element for event:" << v.first);
+            SG_LOG(SG_INPUT, SG_WARN, "\tno item defined for event: " << v.first);
             continue;
         }
 
@@ -451,7 +457,7 @@ bool FGHIDDevice::parseUSBHIDDescriptor()
 {
 #if defined(SG_WINDOWS)
     if (_rawXMLDescriptor.empty()) {
-        SG_LOG(SG_INPUT, SG_ALERT, GetUniqueName() << ": on Windows, there is no way to extract the UDB-HID report descriptor. "
+        SG_LOG(SG_INPUT, SG_ALERT, GetUniqueName() << ": on Windows, there is no way to extract the USB-HID report descriptor. "
                << "\nPlease supply the report descriptor in the device XML configuration.");
         SG_LOG(SG_INPUT, SG_ALERT, "See this page:<> for information on extracting the report descriptor on Windows");
         return false;
@@ -475,7 +481,7 @@ bool FGHIDDevice::parseUSBHIDDescriptor()
     hid_item* rootItem = nullptr;
     hid_parse_reportdesc(_rawXMLDescriptor.data(), _rawXMLDescriptor.size(), &rootItem);
     if (debugEvents) {
-        SG_LOG(SG_INPUT, SG_INFO, "\nHID: scan for:" << GetUniqueName());
+        SG_LOG(SG_INPUT, SG_INFO, "HID scan for: " << GetUniqueName());
     }
 
     parseCollection(rootItem);
@@ -592,7 +598,7 @@ void FGHIDDevice::parseItem(hid_item* item)
     uint32_t bitOffset = report->currentBitSize();
 
     if (debugEvents) {
-        SG_LOG(SG_INPUT, SG_INFO, GetUniqueName() << ": add:" << name << ", bits: " << bitOffset << ":" << (int) item->report_size
+        SG_LOG(SG_INPUT, SG_INFO, "\tadd: " << name << ", bits: " << bitOffset << ":" << (int) item->report_size
             << ", report=" << (int) item->report_id);
     }
 

@@ -407,7 +407,7 @@ void FGLinuxInputDevice::Close()
 void FGLinuxInputDevice::Send( const char * eventName, double value )
 {
   if( EVENT_TYPE_BY_NAME.count( eventName ) <= 0 ) {
-    SG_LOG( SG_INPUT, SG_ALERT, "Can't send unknown event " << eventName );
+    SG_LOG( SG_INPUT, SG_DEBUG, "Can't send unknown event " << eventName );
     return;
   }
 
