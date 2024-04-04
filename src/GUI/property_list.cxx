@@ -326,7 +326,8 @@ void PropertyList::updateTextForEntry(NodeData& data)
         if (_verbose) {
             const SGPropertyNode* id = node->getChild("id");
             const SGPropertyNode* name = node->getChild("name");
-            if (id || name) {
+            const SGPropertyNode* desc = node->getChild("desc");
+            if (id || name || desc) {
                 line << " (";
                 if (id) {
                     line << "id: " << id->getStringValue();
@@ -334,6 +335,8 @@ void PropertyList::updateTextForEntry(NodeData& data)
                         line << ", ";
                 } else if (name) {
                     line << "name: " << name->getStringValue();
+                } else if (desc) {
+                    line << "desc: " << desc->getStringValue();
                 }
                 line << ")";
             }
