@@ -420,8 +420,8 @@ void FGLinuxInputDevice::Send( const char * eventName, double value )
   evt.type=typeCode.type;
   evt.code = typeCode.code;
   evt.value = (long)value;
-  evt.time.tv_sec = 0;
-  evt.time.tv_usec = 0;
+  evt.input_event_sec = 0;
+  evt.input_event_usec = 0;
   size_t bytes_written = write(fd, &evt, sizeof(evt));
 
   if( bytes_written == sizeof(evt) )
