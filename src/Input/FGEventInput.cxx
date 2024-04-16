@@ -44,7 +44,7 @@ FGEventSetting::FGEventSetting( SGPropertyNode_ptr base ) :
 {
   SGPropertyNode_ptr n;
 
-  if( (n = base->getNode( "value" )) != NULL ) {  
+  if( (n = base->getNode( "value" )) != NULL ) {
     valueNode = NULL;
     value = n->getDoubleValue();
   } else {
@@ -94,15 +94,15 @@ FGInputEvent * FGInputEvent::NewObject( FGInputDevice * device, SGPropertyNode_p
 
 FGInputEvent::FGInputEvent( FGInputDevice * aDevice, SGPropertyNode_ptr eventNode ) :
   device( aDevice ),
-  lastDt(0.0), 
+  lastDt(0.0),
   lastSettingValue(std::numeric_limits<float>::quiet_NaN())
 {
   name = eventNode->getStringValue( "name", "" );
   desc = eventNode->getStringValue( "desc", "" );
   intervalSec = eventNode->getDoubleValue("interval-sec",0.0);
-  
+
   read_bindings( eventNode, bindings, KEYMOD_NONE, device->GetNasalModule() );
-    
+
   for (auto child : eventNode->getChildren("setting"))
     settings.push_back( new FGEventSetting(child) );
 }
@@ -155,7 +155,7 @@ FGAxisEvent::FGAxisEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode )
   lowThreshold = eventNode->getDoubleValue("low-threshold", -0.9);
   highThreshold = eventNode->getDoubleValue("high-threshold", 0.9);
   lastValue = 9999999;
-    
+
 // interpolation of values
   if (eventNode->hasChild("interpolater")) {
     interpolater.reset(new SGInterpTable{eventNode->getChild("interpolater")});
@@ -181,7 +181,7 @@ void FGAxisEvent::fire( FGEventData & eventData )
 
   if( fabs(ed.value) < deadband )
     ed.value = 0.0;
-    
+
   if (interpolater) {
     if ((ed.value < 0.0) && mirrorInterpolater) {
       // mirror the positive interpolation for negative values
@@ -238,7 +238,7 @@ void FGButtonEvent::fire( FGEventData & eventData )
       FGInputEvent::fire( eventData );
     }
   }
-          
+
   lastState = pressed;
 }
 
@@ -265,7 +265,7 @@ FGInputDevice::~FGInputDevice()
     }
     nas->deleteModule(nasalModule.c_str());
   }
-} 
+}
 
 void FGInputDevice::Configure( SGPropertyNode_ptr aDeviceNode )
 {
@@ -286,16 +286,17 @@ void FGInputDevice::Configure( SGPropertyNode_ptr aDeviceNode )
   debugEvents = deviceNode->getBoolValue("debug-events", debugEvents );
   grab = deviceNode->getBoolValue("grab", grab );
 
-    PropertyList reportNodes = deviceNode->getChildren("report");
-    for( PropertyList::iterator it = reportNodes.begin(); it != reportNodes.end(); ++it ) {
-        FGReportSetting_ptr r = new FGReportSetting(*it);
-        reportSettings.push_back(r);
-    }
+  PropertyList reportNodes = deviceNode->getChildren("report");
+  for( PropertyList::iterator it = reportNodes.begin(); it != reportNodes.end(); ++it ) {
+      FGReportSetting_ptr r = new FGReportSetting(*it);
+      reportSettings.push_back(r);
+  }
 
-  // TODO:
-  // add nodes for the last event:
-  // last-event/name [string]
-  // last-event/value [double]
+
+  lastEventName = deviceNode->getNode("last-event", true)->getNode("name", true);
+  lastEventName->setStringValue("");
+  lastEventValue = deviceNode->getNode("last-event")->getNode("value", true);
+  lastEventValue->setDoubleValue(0.0);
 
   SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
   if (nasal) {
@@ -333,12 +334,13 @@ void FGInputDevice::update( double dt )
 
 void FGInputDevice::HandleEvent( FGEventData & eventData )
 {
-  string eventName = TranslateEventName( eventData );  
+  string eventName = TranslateEventName( eventData );
   if( debugEvents ) {
     SG_LOG(SG_INPUT, SG_INFO, class_id << " " << GetUniqueName() << " has event " <<
            eventName << " modifiers=" << eventData.modifiers << " value=" << eventData.value);
   }
-    
+  lastEventName->setStringValue(eventName);
+  lastEventValue->setValue(eventData.value);
   if( handledEvents.count( eventName ) > 0 ) {
     handledEvents[ eventName ]->fire( eventData );
   }
@@ -346,7 +348,7 @@ void FGInputDevice::HandleEvent( FGEventData & eventData )
 
 void FGInputDevice::SetName( string name )
 {
-  this->name = name; 
+  this->name = name;
 }
 
 void FGInputDevice::SetUniqueName(const std::string &name)
@@ -426,8 +428,8 @@ unsigned FGEventInput::AddDevice( FGInputDevice * inputDevice )
 
   const string deviceName = inputDevice->GetName();
   SGPropertyNode_ptr configNode = nullptr;
-  
-    // if we have a serial number set, try using that to select a specfic configuration
+
+  // if we have a serial number set, try using that to select a specfic configuration
   if (!inputDevice->GetSerialNumber().empty()) {
     const string nameWithSerial = deviceName + "::" + inputDevice->GetSerialNumber();
     if (configMap.hasConfiguration(nameWithSerial)) {
@@ -440,15 +442,15 @@ unsigned FGEventInput::AddDevice( FGInputDevice * inputDevice )
   if (configNode == nullptr) {
     const auto nameWithIndex = computeDeviceIndexName(inputDevice);
     // try instanced (counted) name
-      if (configMap.hasConfiguration(nameWithIndex)) {
-          configNode = configMap.configurationForDeviceName(nameWithIndex);
-          SG_LOG(SG_INPUT, SG_INFO, "using instance-specific configuration for device "
-                 << nameWithIndex << " : " << configNode->getStringValue("source"));
-      }
+    if (configMap.hasConfiguration(nameWithIndex)) {
+        configNode = configMap.configurationForDeviceName(nameWithIndex);
+        SG_LOG(SG_INPUT, SG_INFO, "using instance-specific configuration for device "
+                << nameWithIndex << " : " << configNode->getStringValue("source"));
+    }
     // otherwise try the unmodifed name for the device
     else if (configMap.hasConfiguration(deviceName)) {
       configNode = configMap.configurationForDeviceName(deviceName);
-  }
+    }
     else {
       SG_LOG(SG_INPUT, SG_INFO, "No configuration found for device " << deviceName);
       delete inputDevice;
@@ -544,7 +546,7 @@ std::string FGReportSetting::reportBytes(const std::string& moduleName) const
         SG_LOG(SG_IO, SG_WARN, "No such Nasal module:" << moduleName);
         return {};
     }
-    
+
     naRef func = naHash_cget(module, (char*) nasalFunction.c_str());
     if (!naIsFunc(func)) {
         return std::string();
@@ -581,7 +583,7 @@ std::string FGReportSetting::reportBytes(const std::string& moduleName) const
 
       return s;
     }
-    
+
     SG_LOG(SG_INPUT, SG_DEV_WARN, "bad return data from report setting");
     return {};
 }

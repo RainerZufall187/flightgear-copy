@@ -426,7 +426,8 @@ void FGLinuxInputDevice::Send( const char * eventName, double value )
   evt.input_event_sec = 0;
   evt.input_event_usec = 0;
   size_t bytes_written = write(fd, &evt, sizeof(evt));
-
+  lastEventName->setStringValue(eventName);
+  lastEventValue->setDoubleValue(value);
   if( bytes_written == sizeof(evt) )
     SG_LOG(SG_INPUT, SG_DEBUG, "Written event " << eventName << " as type=" << evt.type
                         << ", code=" << evt.code << " value=" << evt.value);

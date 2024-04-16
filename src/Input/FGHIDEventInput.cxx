@@ -800,6 +800,9 @@ void FGHIDDevice::Send(const char *eventName, double value)
         return; // not actually changing
     }
 
+    lastEventName->setStringValue(eventName);
+    lastEventValue->setDoubleValue(value);
+
     // update the stored value prior to sending
     item.second->lastValue = intValue;
     _dirtyReports.insert(item.first);

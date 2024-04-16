@@ -59,8 +59,8 @@ public:
 
     double Normalize( struct input_event & event );
 private:
-    std::string devfile {};
-    std::string devpath {};
+    std::string devfile;
+    std::string devpath;
     int fd {-1};
     std::map<unsigned int,input_absinfo> absinfo;
 };

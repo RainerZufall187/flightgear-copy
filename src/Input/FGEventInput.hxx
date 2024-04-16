@@ -62,8 +62,8 @@ public:
 
 protected:
     double value {0.0};
-    SGPropertyNode_ptr valueNode {nullptr};
-    SGSharedPtr<const SGCondition> condition {nullptr};
+    SGPropertyNode_ptr valueNode;
+    SGSharedPtr<const SGCondition> condition;
 };
 
 typedef SGSharedPtr<FGEventSetting> FGEventSetting_ptr;
@@ -275,7 +275,11 @@ protected:
     // so events are not sent to other applications
     bool grab = false;
 
+    //configuration in property tree
     SGPropertyNode_ptr deviceNode;
+    SGPropertyNode_ptr lastEventName;
+    SGPropertyNode_ptr lastEventValue;
+
     std::string nasalModule;
 
     report_setting_list_t reportSettings;
