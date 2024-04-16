@@ -77,33 +77,33 @@ static inline bool StartsWith( string & s, const char * cp )
   return s.find( cp ) == 0;
 }
 
-FGInputEvent * FGInputEvent::NewObject( FGInputDevice * device, SGPropertyNode_ptr node )
+FGInputEvent * FGInputEvent::NewObject( FGInputDevice * device, SGPropertyNode_ptr eventNode )
 {
-  string name = node->getStringValue( "name", "" );
+  string name = eventNode->getStringValue( "name", "" );
   if( StartsWith( name, "button-" ) )
-    return new FGButtonEvent( device, node );
+    return new FGButtonEvent( device, eventNode );
 
   if( StartsWith( name, "rel-" ) )
-    return new FGRelAxisEvent( device, node );
+    return new FGRelAxisEvent( device, eventNode );
 
   if( StartsWith( name, "abs-" ) )
-    return new FGAbsAxisEvent( device, node );
+    return new FGAbsAxisEvent( device, eventNode );
 
-  return new FGInputEvent( device, node );
+  return new FGInputEvent( device, eventNode );
 }
 
-FGInputEvent::FGInputEvent( FGInputDevice * aDevice, SGPropertyNode_ptr node ) :
+FGInputEvent::FGInputEvent( FGInputDevice * aDevice, SGPropertyNode_ptr eventNode ) :
   device( aDevice ),
   lastDt(0.0), 
   lastSettingValue(std::numeric_limits<float>::quiet_NaN())
 {
-  name = node->getStringValue( "name", "" );
-  desc = node->getStringValue( "desc", "" );
-  intervalSec = node->getDoubleValue("interval-sec",0.0);
+  name = eventNode->getStringValue( "name", "" );
+  desc = eventNode->getStringValue( "desc", "" );
+  intervalSec = eventNode->getDoubleValue("interval-sec",0.0);
   
-  read_bindings( node, bindings, KEYMOD_NONE, device->GetNasalModule() );
+  read_bindings( eventNode, bindings, KEYMOD_NONE, device->GetNasalModule() );
     
-  for (auto child : node->getChildren("setting"))
+  for (auto child : eventNode->getChildren("setting"))
     settings.push_back( new FGEventSetting(child) );
 }
 
@@ -111,6 +111,7 @@ FGInputEvent::~FGInputEvent()
 {
 }
 
+// send changed value to device (if condition matches)
 void FGInputEvent::update( double dt )
 {
   for (auto setting : settings) {
@@ -143,28 +144,27 @@ void FGInputEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
 
 
 
-FGAxisEvent::FGAxisEvent( FGInputDevice * device, SGPropertyNode_ptr node ) :
-  FGInputEvent( device, node )
+FGAxisEvent::FGAxisEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode ) :
+  FGInputEvent( device, eventNode )
 {
-  tolerance = node->getDoubleValue("tolerance", 0.002);
-  minRange = node->getDoubleValue("min-range", 0.0 );
-  maxRange = node->getDoubleValue("max-range", 0.0 );
-  center = node->getDoubleValue("center", 0.0);
-  deadband = node->getDoubleValue("dead-band", 0.0);
-  lowThreshold = node->getDoubleValue("low-threshold", -0.9);
-  highThreshold = node->getDoubleValue("high-threshold", 0.9);
+  tolerance = eventNode->getDoubleValue("tolerance", 0.002);
+  minRange = eventNode->getDoubleValue("min-range", 0.0 );
+  maxRange = eventNode->getDoubleValue("max-range", 0.0 );
+  center = eventNode->getDoubleValue("center", 0.0);
+  deadband = eventNode->getDoubleValue("dead-band", 0.0);
+  lowThreshold = eventNode->getDoubleValue("low-threshold", -0.9);
+  highThreshold = eventNode->getDoubleValue("high-threshold", 0.9);
   lastValue = 9999999;
     
 // interpolation of values
-  if (node->hasChild("interpolater")) {
-    interpolater.reset(new SGInterpTable{node->getChild("interpolater")});
-    mirrorInterpolater = node->getBoolValue("interpolater/mirrored", false);
+  if (eventNode->hasChild("interpolater")) {
+    interpolater.reset(new SGInterpTable{eventNode->getChild("interpolater")});
+    mirrorInterpolater = eventNode->getBoolValue("interpolater/mirrored", false);
   }
 }
 
 FGAxisEvent::~FGAxisEvent()
 {
-    
 }
 
 void FGAxisEvent::fire( FGEventData & eventData )
@@ -200,8 +200,8 @@ void FGAbsAxisEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
   binding->fire( eventData.value );
 }
 
-FGRelAxisEvent::FGRelAxisEvent( FGInputDevice * device, SGPropertyNode_ptr node ) : 
-  FGAxisEvent( device, node ) 
+FGRelAxisEvent::FGRelAxisEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode ) :
+  FGAxisEvent( device, eventNode )
 {
   // relative axes can't use tolerance
   tolerance = 0.0;
@@ -213,12 +213,12 @@ void FGRelAxisEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
   binding->fire( eventData.value, 1.0 );
 }
 
-FGButtonEvent::FGButtonEvent( FGInputDevice * device, SGPropertyNode_ptr node ) :
-  FGInputEvent( device, node ),
+FGButtonEvent::FGButtonEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode ) :
+  FGInputEvent( device, eventNode ),
   repeatable(false),
   lastState(false)
 {
-  repeatable = node->getBoolValue("repeatable", repeatable);
+  repeatable = eventNode->getBoolValue("repeatable", repeatable);
 }
 
 void FGButtonEvent::fire( FGEventData & eventData )
@@ -227,13 +227,13 @@ void FGButtonEvent::fire( FGEventData & eventData )
   if (pressed) {
     // The press event may be repeated.
     if (!lastState || repeatable) {
-      SG_LOG( SG_INPUT, SG_DEBUG, "Button has been pressed" );
+      SG_LOG( SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been pressed" );
       FGInputEvent::fire( eventData );
     }
   } else {
     // The release event is never repeated.
     if (lastState) {
-      SG_LOG( SG_INPUT, SG_DEBUG, "Button has been released" );
+      SG_LOG( SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been released" );
       eventData.modifiers|=KEYMOD_RELEASED;
       FGInputEvent::fire( eventData );
     }
@@ -270,6 +270,9 @@ FGInputDevice::~FGInputDevice()
 void FGInputDevice::Configure( SGPropertyNode_ptr aDeviceNode )
 {
   deviceNode = aDeviceNode;
+
+  // export our class_id to property tree
+  deviceNode->getNode("_class-id", true)->setValue(class_id.c_str());
 
   SG_LOG(SG_INPUT, SG_DEBUG, "FGInputDevice::Configure");
 
@@ -332,7 +335,7 @@ void FGInputDevice::HandleEvent( FGEventData & eventData )
 {
   string eventName = TranslateEventName( eventData );  
   if( debugEvents ) {
-    SG_LOG(SG_INPUT, SG_INFO, GetUniqueName() << " has event " <<
+    SG_LOG(SG_INPUT, SG_INFO, class_id << " " << GetUniqueName() << " has event " <<
            eventName << " modifiers=" << eventData.modifiers << " value=" << eventData.value);
   }
     
@@ -419,10 +422,10 @@ std::string FGEventInput::computeDeviceIndexName(FGInputDevice* dev) const
 unsigned FGEventInput::AddDevice( FGInputDevice * inputDevice )
 {
   SGPropertyNode_ptr baseNode = fgGetNode( PROPERTY_ROOT, true );
-  SGPropertyNode_ptr deviceNode;
+  SGPropertyNode_ptr deviceNode = nullptr;
 
   const string deviceName = inputDevice->GetName();
-  SGPropertyNode_ptr configNode;
+  SGPropertyNode_ptr configNode = nullptr;
   
     // if we have a serial number set, try using that to select a specfic configuration
   if (!inputDevice->GetSerialNumber().empty()) {
@@ -434,38 +437,31 @@ unsigned FGEventInput::AddDevice( FGInputDevice * inputDevice )
       inputDevice->SetUniqueName(nameWithSerial);
     }
   }
-
-  // try instanced (counted) name
-  const auto nameWithIndex = computeDeviceIndexName(inputDevice);
   if (configNode == nullptr) {
+    const auto nameWithIndex = computeDeviceIndexName(inputDevice);
+    // try instanced (counted) name
       if (configMap.hasConfiguration(nameWithIndex)) {
           configNode = configMap.configurationForDeviceName(nameWithIndex);
           SG_LOG(SG_INPUT, SG_INFO, "using instance-specific configuration for device "
                  << nameWithIndex << " : " << configNode->getStringValue("source"));
       }
+    // otherwise try the unmodifed name for the device
+    else if (configMap.hasConfiguration(deviceName)) {
+      configNode = configMap.configurationForDeviceName(deviceName);
   }
-  
-  // otherwise try the unmodifed name for the device
-  if (configNode == nullptr) {
-    if (!configMap.hasConfiguration(deviceName)) {
+    else {
       SG_LOG(SG_INPUT, SG_INFO, "No configuration found for device " << deviceName);
       delete inputDevice;
       return INVALID_DEVICE_INDEX;
     }
-    configNode = configMap.configurationForDeviceName(deviceName);
-  }
-    
-  // if we didn't generate a name based on the serial number,
-  // use the name with the index suffix _0, _1, etc
-  if (inputDevice->GetUniqueName().empty()) {
     inputDevice->SetUniqueName(nameWithIndex);
   }
 
   // found - copy to /input/event/device[n]
   // find a free index
   unsigned int index;
-  for ( index = 0; index < MAX_DEVICES; index++ ) {
-    if ( (deviceNode = baseNode->getNode( "device", index, false ) ) == nullptr )
+  for (index = 0; index < MAX_DEVICES; index++) {
+    if ((deviceNode = baseNode->getNode("device", index, false)) == nullptr)
       break;
   }
 
@@ -493,7 +489,7 @@ unsigned FGEventInput::AddDevice( FGInputDevice * inputDevice )
 
     input_devices[deviceNode->getIndex()] = inputDevice;
 
-    SG_LOG(SG_INPUT, SG_INFO, "FGEventInput::AddDevice '" << inputDevice->GetUniqueName() << "' s/n: " << inputDevice->GetSerialNumber() );
+    SG_LOG(SG_INPUT, SG_INFO, inputDevice->class_id << "::AddDevice '" << inputDevice->GetUniqueName() << "' s/n: " << inputDevice->GetSerialNumber() );
     return deviceNode->getIndex();
 }
 
