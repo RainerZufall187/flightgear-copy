@@ -229,10 +229,10 @@ void PropertyList::handle_select(puObject *list_box)
         }
 
         // it is a regular property
-        if (child->getType() == simgear::props::BOOL && mod_ctrl) {
+        if (child->getType() == simgear::props::BOOL && mod_ctrl && !mod_shift && !mod_alt) {
             child->setBoolValue(!child->getBoolValue());
             prop_list->update(true);
-        } else if (mod_shift) {
+        } else if (mod_alt && mod_ctrl) {
             child->setAttribute(SGPropertyNode::TRACE_READ,
                                 !child->getAttribute(SGPropertyNode::TRACE_READ));
         } else if (mod_alt) {
