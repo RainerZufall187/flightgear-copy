@@ -458,6 +458,20 @@ if (ENABLE_ASAN)
 
     # needed for check_cxx_source_compiles
     set(CMAKE_REQUIRED_LINK_OPTIONS "-fsanitize=address")
+    if (ENABLE_TSAN)
+        message(FATAL_ERROR  "ENABLE_ASAN=ON incompatible with ENABLE_TSAN=ON")
+    endif()
+else ()
+    if (ENABLE_TSAN)
+        message(WARNING  "ThreadSanitizer (ENABLE_TSAN=ON) has a performance impact.")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=thread")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread")
+
+        # needed for check_cxx_source_compiles
+        set(CMAKE_REQUIRED_LINK_OPTIONS "-fsanitize=thread")
+    endif()
 endif()
 
 if(WIN32)
