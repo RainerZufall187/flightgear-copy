@@ -437,7 +437,7 @@ namespace HID
                 case GD_Select:              return "select";
                 case GD_Vx:                  return "x-vector";
                 case GD_Vy:                  return "y-vector";
-                case GD_Vz:                  return "z-vecrtor";
+                case GD_Vz:                  return "z-vector";
                 case GD_Vbrx:                return "relative-x-vector";
                 case GD_Vbry:                return "relative-y-vector";
                 case GD_Vbrz:                return "relative-z-vector";
