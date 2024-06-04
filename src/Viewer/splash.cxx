@@ -128,10 +128,10 @@ void SplashScreen::createNodes()
     // The splash FBO is rendered as sRGB, but for VR it needs to be in an sRGB
     // pixel format for it to be handled as such by OpenXR.
     bool useSRGB = false;
+    osg::Camera* guiCamera = flightgear::getGUICamera(flightgear::CameraGroup::getDefault());
 #if !defined(SG_MAC)
     // SRGB does detect on macOS, but doesn't actually work, so we
     // disable the check there.
-    osg::Camera* guiCamera = flightgear::getGUICamera(flightgear::CameraGroup::getDefault());
     if (guiCamera) {
         osg::GraphicsContext* gc = guiCamera->getGraphicsContext();
         osg::GLExtensions* glext = gc->getState()->get<osg::GLExtensions>();
