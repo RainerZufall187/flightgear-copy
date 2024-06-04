@@ -39,6 +39,15 @@ extern "C" {
 
 #include <string.h>
 
+/*
+ * Handle old kernel headers (< v4.16) which don't define input_event_sec or
+ * input_event_usec macros (for use with struct input_event).
+ */
+#ifndef input_event_sec
+#define input_event_sec time.tv_sec
+#define input_event_usec time.tv_usec
+#endif
+
 struct TypeCode {
   unsigned type;
   unsigned code;
